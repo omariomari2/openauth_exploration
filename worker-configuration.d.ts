@@ -5,6 +5,8 @@ declare namespace Cloudflare {
 	interface Env {
 		AUTH_STORAGE: KVNamespace;
 		AUTH_DB: D1Database;
+		GOOGLE_CLIENT_ID: string;
+		GOOGLE_CLIENT_SECRET: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

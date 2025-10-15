@@ -26,7 +26,27 @@
 		"cf-typegen": "wrangler types",
 		"check": "tsc && wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
+		"deploy:dev": "wrangler deploy --name openauth-dev",
+		"deploy:prod": "wrangler deploy --name openauth-prod",
 		"dev": "wrangler dev",
-		"predeploy": "wrangler d1 migrations apply AUTH_DB --remote"
+		"predeploy": "wrangler d1 migrations apply AUTH_DB --remote",
+		"migrate": "wrangler d1 migrations apply AUTH_DB --remote",
+		"migrate:local": "wrangler d1 migrations apply AUTH_DB --local",
+		"db:create": "wrangler d1 create",
+		"kv:create": "wrangler kv namespace create AUTH_STORAGE",
+		"secrets:set": "wrangler secret put",
+		"secrets:list": "wrangler secret list",
+		"logs": "wrangler tail",
+		"logs:dev": "wrangler tail --name openauth-dev",
+		"db:query": "wrangler d1 execute AUTH_DB --remote --command",
+		"db:tables": "wrangler d1 execute AUTH_DB --remote --command \"SELECT name FROM sqlite_master WHERE type='table';\"",
+		"db:users": "wrangler d1 execute AUTH_DB --remote --command \"SELECT * FROM user LIMIT 10;\"",
+		"test:health": "curl https://your-worker.workers.dev/health",
+		"test:auth": "curl https://your-worker.workers.dev/authorize?client_id=test&redirect_uri=http://localhost:3000/callback&response_type=code",
+		"setup": "npm run db:create && npm run kv:create && npm run secrets:set",
+		"setup:secrets": "echo 'Setting up secrets...' && wrangler secret put GOOGLE_CLIENT_ID && wrangler secret put GOOGLE_CLIENT_SECRET",
+		"test:deploy": "wrangler deploy --dry-run",
+		"build": "tsc",
+		"clean": "rm -rf dist"
 	}
 }

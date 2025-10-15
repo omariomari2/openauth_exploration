@@ -25,29 +25,77 @@ A live public deployment of this template is available at [https://openauth-temp
 
 ## Setup Steps
 
-1. Install the project dependencies with a package manager of your choice:
+### Quick Start
+
+1. Install dependencies:
    ```bash
    npm install
    ```
-2. Create a [D1 database](https://developers.cloudflare.com/d1/get-started/) with the name "openauth-template-auth-db":
+
+2. Set up Google OAuth credentials:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create OAuth 2.0 credentials (see [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed steps)
+   - Copy your Client ID and Client Secret
+
+3. Create Cloudflare resources:
    ```bash
-   npx wrangler d1 create openauth-template-auth-db
+   # Create D1 database
+   npm run db:create openauth-template-auth-db
+   
+   # Create KV namespace
+   npm run kv:create AUTH_STORAGE
    ```
-   ...and update the `database_id` field in `wrangler.json` with the new database ID.
-3. Run the following db migration to initialize the database (notice the `migrations` directory in this project):
+
+4. Set up secrets:
    ```bash
-   npx wrangler d1 migrations apply --remote openauth-template-auth-db
+   npm run setup:secrets
+   # Enter your Google Client ID and Secret when prompted
    ```
-4. Create a [kv namespace](https://developers.cloudflare.com/kv/get-started/) with a binding named "AUTH_STORAGE":
+
+5. Run database migrations:
    ```bash
-   npx wrangler kv namespace create AUTH_STORAGE
+   npm run migrate
    ```
-   ...and update the `kv_namespaces` -> `id` field in `wrangler.json` with the new namespace ID.
-5. Deploy the project!
+
+6. Deploy to Cloudflare:
    ```bash
-   npx wrangler deploy
+   npm run deploy
    ```
-6. And monitor your worker
-   ```bash
-   npx wrangler tail
-   ```
+
+### Enhanced Features
+
+This template now includes:
+
+- **Google OAuth Integration**: Login with Google alongside email/password
+- **Extended User Schema**: First name, last name, avatar, role, and addresses
+- **Client SDK**: Easy frontend integration with TypeScript support
+- **Authentication Middleware**: Route protection and role-based access control
+- **Ecommerce Ready**: Database schema optimized for ecommerce applications
+
+### Documentation
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)**: Complete deployment guide with Google OAuth setup
+- **[ECOMMERCE_INTEGRATION.md](./ECOMMERCE_INTEGRATION.md)**: Integration guide for ecommerce applications
+- **[examples/](./examples/)**: Working examples for frontend and API integration
+
+### Monitoring
+
+Monitor your deployed worker:
+```bash
+npm run logs
+```
+
+### ARM Architecture Support
+
+**Important:** If you're on an ARM CPU (like Apple Silicon or Windows ARM), Wrangler's `workerd` package doesn't support ARM64 architecture. 
+
+**Recommended for ARM users:** Use the **Direct Deployment Workflow** - see [DIRECT_DEPLOYMENT_WORKFLOW.md](./DIRECT_DEPLOYMENT_WORKFLOW.md) for a streamlined approach that lets you:
+- Edit code locally on your ARM machine
+- Deploy directly to Cloudflare Workers
+- Test on live environment
+- Keep our conversation going! 💬
+
+Alternative approaches in [ARM_DEVELOPMENT_GUIDE.md](./ARM_DEVELOPMENT_GUIDE.md):
+- GitHub Codespaces
+- WSL2 on Windows  
+- Docker containers

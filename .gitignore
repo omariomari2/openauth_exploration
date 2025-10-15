@@ -197,3 +197,41 @@ dist
 !.env.example
 .dev.vars*
 !.dev.vars.example
+
+# OpenAuth specific files
+tech.md
+openauth-google.plan.md
+
+# Documentation files (keep only essential ones)
+ECOMMERCE_INTEGRATION.md
+DEPLOYMENT.md
+AUTH_ANALYSIS.md
+ARM_DEVELOPMENT_GUIDE.md
+DIRECT_DEPLOYMENT_WORKFLOW.md
+
+# All markdown files except README
+*.md
+!README.md
+
+# ARM architecture specific issues
+# Note: workerd package doesn't support Windows ARM64
+# Use GitHub Codespaces, WSL2, or direct deployment for development
+
+# Build outputs
+dist/
+build/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Temporary files
+*.tmp
+*.temp

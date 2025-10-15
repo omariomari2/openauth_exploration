@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAuth Integration Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .auth-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 10px;
+        }
+        button {
+            background: #0051c3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #003d91;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #545b62;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .api-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #dee2e6;
+        }
+        .api-response {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenAuth Integration Example</h1>
+        
+        <div id="status" class="loading">Initializing...</div>
+        
+        <div id="auth-section" class="auth-section" style="display: none;">
+            <h2>Authentication</h2>
+            <p>Click the button below to authenticate with Google or email/password:</p>
+            <button id="login-btn">Login with OpenAuth</button>
+        </div>
+        
+        <div id="user-section" style="display: none;">
+            <div class="user-info">
+                <h2>Welcome!</h2>
+                <img id="user-avatar" class="user-avatar" src="" alt="User Avatar">
+                <div>
+                    <strong id="user-name">User Name</strong><br>
+                    <span id="user-email">user@example.com</span><br>
+                    <span id="user-role">Role: customer</span>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button id="logout-btn" class="secondary">Logout</button>
+                    <button id="refresh-btn">Refresh User Data</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="api-section" class="api-section" style="display: none;">
+            <h2>API Testing</h2>
+            <p>Test authenticated API calls:</p>
+            <button id="test-api-btn">Test Protected API</button>
+            <button id="test-admin-btn">Test Admin API</button>
+            <div id="api-response" class="api-response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Include the AuthClient SDK -->
+    <script type="module">
+        // Configuration - Update these values for your setup
+        const CONFIG = {
+            authServerUrl: 'https://your-worker.workers.dev', // Replace with your OpenAuth server URL
+            clientId: 'your-client-id', // Replace with your client ID
+            redirectUri: window.location.origin + window.location.pathname, // Current page as callback
+            scope: 'openid profile email'
+        };
+
+        // Import the AuthClient (in a real app, you'd import from npm)
+        // For this example, we'll define a simplified version inline
+        class AuthClient {
+            constructor(config) {
+                this.config = config;
+                this.tokenStorageKey = 'openauth_tokens';
+                this.userStorageKey = 'openauth_user';
+            }
+
+            login() {
+                const authUrl = `${this.config.authServerUrl}/authorize?` + 
+                    new URLSearchParams({
+                        client_id: this.config.clientId,
+                        redirect_uri: this.config.redirectUri,
+                        response_type: 'code',
+                        scope: this.config.scope,
+                        state: this.generateState()
+                    });
+                window.location.href = authUrl;
+            }
+
+            async handleCallback() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                const error = urlParams.get('error');
+
+                if (error) {
+                    throw new Error(`OAuth error: ${error}`);
+                }
+
+                if (!code || !this.validateState(state)) {
+                    throw new Error('Invalid callback parameters');
+                }
+
+                const tokens = await this.exchangeCodeForTokens(code);
+                await this.storeTokens(tokens);
+                
+                const user = await this.getCurrentUser();
+                this.storeUser(user);
+                
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return true;
+            }
+
+            async getCurrentUser() {
+                const tokens = this.getStoredTokens();
+                if (!tokens) return null;
+
+                const response = await fetch(`${this.config.authServerUrl}/userinfo`, {
+                    headers: {
+                        'Authorization': `Bearer ${tokens.access_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const refreshed = await this.refreshToken();
+                    if (refreshed) {
+                        return this.getCurrentUser();
+                    }
+                    return null;
+                }
+
+                return await response.json();
+            }
+
+            isAuthenticated() {
+                const tokens = this.getStoredTokens();
+                if (!tokens) return false;
+
+                const expiresAt = localStorage.getItem('openauth_token_expires');
+                if (expiresAt && Date.now() > parseInt(expiresAt)) {
+                    return false;
+                }
+                return true;
+            }
+
+            logout() {
+                localStorage.removeItem(this.tokenStorageKey);
+                localStorage.removeItem(this.userStorageKey);
+                localStorage.removeItem('openauth_token_expires');
+                localStorage.removeItem('openauth_state');
+            }
+
+            async refreshToken() {
+                const tokens = this.getStoredTokens();
+                if (!tokens?.refresh_token) return false;
+
+                try {
+                    const response = await fetch(`${this.config.authServerUrl}/token`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            grant_type: 'refresh_token',
+                            refresh_token: tokens.refresh_token,
+                            client_id: this.config.clientId
+                        })
+                    });
+
+                    if (!response.ok) return false;
+
+                    const newTokens = await response.json();
+                    await this.storeTokens(newTokens);
+                    return true;
+                } catch (error) {
+                    console.error('Token refresh failed:', error);
+                    return false;
+                }
+            }
+
+            async authenticatedFetch(url, options = {}) {
+                const tokens = this.getStoredTokens();
+                if (!tokens) throw new Error('Not authenticated');
+
+                const headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${tokens.access_token}`
+                };
+
+                const response = await fetch(url, { ...options, headers });
+
+                if (response.status === 401) {
+                    const refreshed = await this.refreshToken();
+                    if (refreshed) {
+                        const newTokens = this.getStoredTokens();
+                        const newHeaders = {
+                            ...options.headers,
+                            'Authorization': `Bearer ${newTokens.access_token}`
+                        };
+                        return fetch(url, { ...options, headers: newHeaders });
+                    }
+                }
+
+                return response;
+            }
+
+            getStoredTokens() {
+                const stored = localStorage.getItem(this.tokenStorageKey);
+                return stored ? JSON.parse(stored) : null;
+            }
+
+            async storeTokens(tokens) {
+                localStorage.setItem(this.tokenStorageKey, JSON.stringify(tokens));
+                const expiresAt = Date.now() + (tokens.expires_in * 1000);
+                localStorage.setItem('openauth_token_expires', expiresAt.toString());
+            }
+
+            storeUser(user) {
+                localStorage.setItem(this.userStorageKey, JSON.stringify(user));
+            }
+
+            getStoredUser() {
+                const stored = localStorage.getItem(this.userStorageKey);
+                return stored ? JSON.parse(stored) : null;
+            }
+
+            async exchangeCodeForTokens(code) {
+                const response = await fetch(`${this.config.authServerUrl}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        code,
+                        client_id: this.config.clientId,
+                        redirect_uri: this.config.redirectUri
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Token exchange failed');
+                }
+
+                return await response.json();
+            }
+
+            generateState() {
+                const state = Math.random().toString(36).substring(2, 15) + 
+                              Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('openauth_state', state);
+                return state;
+            }
+
+            validateState(state) {
+                const storedState = localStorage.getItem('openauth_state');
+                localStorage.removeItem('openauth_state');
+                return state === storedState;
+            }
+        }
+
+        // Initialize the app
+        const authClient = new AuthClient(CONFIG);
+        let currentUser = null;
+
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const authSectionEl = document.getElementById('auth-section');
+        const userSectionEl = document.getElementById('user-section');
+        const apiSectionEl = document.getElementById('api-section');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const testApiBtn = document.getElementById('test-api-btn');
+        const testAdminBtn = document.getElementById('test-admin-btn');
+        const apiResponseEl = document.getElementById('api-response');
+
+        // Update UI based on authentication state
+        function updateUI() {
+            if (authClient.isAuthenticated() && currentUser) {
+                // Show authenticated state
+                statusEl.style.display = 'none';
+                authSectionEl.style.display = 'none';
+                userSectionEl.style.display = 'block';
+                apiSectionEl.style.display = 'block';
+
+                // Update user info
+                document.getElementById('user-name').textContent = 
+                    `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email;
+                document.getElementById('user-email').textContent = currentUser.email;
+                document.getElementById('user-role').textContent = `Role: ${currentUser.role || 'customer'}`;
+                
+                const avatarEl = document.getElementById('user-avatar');
+                if (currentUser.avatar_url) {
+                    avatarEl.src = currentUser.avatar_url;
+                    avatarEl.style.display = 'inline-block';
+                } else {
+                    avatarEl.style.display = 'none';
+                }
+            } else {
+                // Show unauthenticated state
+                statusEl.style.display = 'block';
+                authSectionEl.style.display = 'block';
+                userSectionEl.style.display = 'none';
+                apiSectionEl.style.display = 'none';
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'loading') {
+            statusEl.textContent = message;
+            statusEl.className = type;
+            statusEl.style.display = 'block';
+        }
+
+        // Show API response
+        function showApiResponse(data) {
+            apiResponseEl.textContent = JSON.stringify(data, null, 2);
+            apiResponseEl.style.display = 'block';
+        }
+
+        // Initialize the application
+        async function init() {
+            try {
+                // Check if we're in a callback flow
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('code')) {
+                    showStatus('Processing authentication...', 'loading');
+                    
+                    const success = await authClient.handleCallback();
+                    if (success) {
+                        showStatus('Authentication successful!', 'success');
+                        currentUser = authClient.getStoredUser();
+                        updateUI();
+                    } else {
+                        showStatus('Authentication failed. Please try again.', 'error');
+                    }
+                } else if (authClient.isAuthenticated()) {
+                    // Load user if authenticated
+                    showStatus('Loading user data...', 'loading');
+                    currentUser = await authClient.getCurrentUser();
+                    if (currentUser) {
+                        showStatus('Ready!', 'success');
+                        setTimeout(() => updateUI(), 1000);
+                    } else {
+                        showStatus('Failed to load user data. Please login again.', 'error');
+                        authClient.logout();
+                    }
+                } else {
+                    showStatus('Ready! Click login to authenticate.', 'success');
+                    updateUI();
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Event listeners
+        loginBtn.addEventListener('click', () => {
+            authClient.login();
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            authClient.logout();
+            currentUser = null;
+            updateUI();
+            showStatus('Logged out successfully!', 'success');
+        });
+
+        refreshBtn.addEventListener('click', async () => {
+            showStatus('Refreshing user data...', 'loading');
+            try {
+                currentUser = await authClient.getCurrentUser();
+                if (currentUser) {
+                    showStatus('User data refreshed!', 'success');
+                    updateUI();
+                } else {
+                    showStatus('Failed to refresh user data.', 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        testApiBtn.addEventListener('click', async () => {
+            try {
+                const response = await authClient.authenticatedFetch(`${CONFIG.authServerUrl}/api/protected`);
+                const data = await response.json();
+                showApiResponse(data);
+            } catch (error) {
+                showApiResponse({ error: error.message });
+            }
+        });
+
+        testAdminBtn.addEventListener('click', async () => {
+            try {
+                const response = await authClient.authenticatedFetch(`${CONFIG.authServerUrl}/api/admin`);
+                const data = await response.json();
+                showApiResponse(data);
+            } catch (error) {
+                showApiResponse({ error: error.message });
+            }
+        });
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>

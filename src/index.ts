@@ -2,6 +2,7 @@ import { issuer } from "@openauthjs/openauth";
 import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
 import { PasswordProvider } from "@openauthjs/openauth/provider/password";
 import { PasswordUI } from "@openauthjs/openauth/ui/password";
+import { GoogleProvider } from "@openauthjs/openauth/provider/google";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { object, string } from "valibot";
 
@@ -57,6 +58,11 @@ export default {
 						},
 					}),
 				),
+				google: GoogleProvider({
+					clientID: env.GOOGLE_CLIENT_ID,
+					clientSecret: env.GOOGLE_CLIENT_SECRET,
+					scopes: ["profile", "email"],
+				}),
 			},
 			theme: {
 				title: "myAuth",
@@ -69,24 +75,38 @@ export default {
 				},
 			},
 			success: async (ctx, value) => {
+				const email = value.provider === "password" ? value.email : (value as any).email;
+				const profile = value.provider === "google" ? (value as any).profile : undefined;
 				return ctx.subject("user", {
-					id: await getOrCreateUser(env, value.email),
+					id: await getOrCreateUser(env, email || "", profile),
 				});
 			},
 		}).fetch(request, env, ctx);
 	},
 } satisfies ExportedHandler<Env>;
 
-async function getOrCreateUser(env: Env, email: string): Promise<string> {
+async function getOrCreateUser(env: Env, email: string, profile?: any): Promise<string> {
 	const result = await env.AUTH_DB.prepare(
 		`
-		INSERT INTO user (email)
-		VALUES (?)
-		ON CONFLICT (email) DO UPDATE SET email = email
+		INSERT INTO user (email, first_name, last_name, avatar_url, last_login)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT (email) DO UPDATE SET 
+			first_name = COALESCE(?, first_name),
+			last_name = COALESCE(?, last_name),
+			avatar_url = COALESCE(?, avatar_url),
+			last_login = CURRENT_TIMESTAMP
 		RETURNING id;
 		`,
 	)
-		.bind(email)
+		.bind(
+			email,
+			profile?.given_name || null,
+			profile?.family_name || null,
+			profile?.picture || null,
+			profile?.given_name || null,
+			profile?.family_name || null,
+			profile?.picture || null
+		)
 		.first<{ id: string }>();
 	if (!result) {
 		throw new Error(`Unable to process user: ${email}`);
