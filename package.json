@@ -24,10 +24,10 @@
 	},
 	"scripts": {
 		"cf-typegen": "wrangler types",
-		"check": "tsc && wrangler deploy --dry-run",
-		"deploy": "wrangler deploy",
-		"deploy:dev": "wrangler deploy --name openauth-dev",
-		"deploy:prod": "wrangler deploy --name openauth-prod",
+		"check": "npm run build && wrangler deploy --dry-run",
+		"deploy": "npm run build && wrangler deploy",
+		"deploy:dev": "npm run build && wrangler deploy --name openauth-dev",
+		"deploy:prod": "npm run build && wrangler deploy --name openauth-prod",
 		"dev": "wrangler dev",
 		"predeploy": "wrangler d1 migrations apply AUTH_DB --remote",
 		"migrate": "wrangler d1 migrations apply AUTH_DB --remote",
@@ -45,7 +45,7 @@
 		"test:auth": "curl https://your-worker.workers.dev/authorize?client_id=test&redirect_uri=http://localhost:3000/callback&response_type=code",
 		"setup": "npm run db:create && npm run kv:create && npm run secrets:set",
 		"setup:secrets": "echo 'Setting up secrets...' && wrangler secret put GOOGLE_CLIENT_ID && wrangler secret put GOOGLE_CLIENT_SECRET",
-		"test:deploy": "wrangler deploy --dry-run",
+		"test:deploy": "npm run build && wrangler deploy --dry-run",
 		"build": "tsc",
 		"clean": "rm -rf dist"
 	}

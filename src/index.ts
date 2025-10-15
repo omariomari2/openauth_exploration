@@ -6,6 +6,45 @@ import { GoogleProvider } from "@openauthjs/openauth/provider/google";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { object, string } from "valibot";
 
+// Import local modules to ensure they're included in the bundle
+export { AuthClient, useAuth } from "./client-sdk";
+export { 
+  requireAuth, 
+  requireRole, 
+  optionalAuth, 
+  createProtectedHandler, 
+  createRoleProtectedHandler, 
+  createOptionalAuthHandler,
+  RateLimiter,
+  corsHeaders,
+  handleCors,
+  addCorsHeaders,
+  applyRateLimit
+} from "./middleware/auth";
+export { 
+  parseJWT, 
+  isTokenExpired, 
+  getTokenExpiration, 
+  getTimeUntilExpiration, 
+  extractUserFromToken, 
+  validateTokenFormat, 
+  createAuthErrorResponse, 
+  createAuthSuccessResponse, 
+  generateSecureState, 
+  generateCodeVerifier, 
+  generateCodeChallenge, 
+  sanitizeUserData, 
+  hasPermission, 
+  getClientIP, 
+  createRateLimitKey 
+} from "./helpers/token-validation";
+
+// Re-export types with namespace to avoid conflicts
+export type { AuthTokens } from "./client-sdk";
+export type { User as ClientUser, AuthConfig as ClientAuthConfig } from "./client-sdk";
+export type { User as MiddlewareUser, AuthConfig as MiddlewareAuthConfig, AuthResult } from "./middleware/auth";
+export type { TokenPayload, ValidationResult } from "./helpers/token-validation";
+
 // This value should be shared between the OpenAuth server Worker and other
 // client Workers that you connect to it, so the types and schema validation are
 // consistent.

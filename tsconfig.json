@@ -5,11 +5,15 @@
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"types": ["./worker-configuration.d.ts"],
-		"noEmit": true,
+		"noEmit": false,
+		"outDir": "./dist",
 		"isolatedModules": true,
 		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true,
-		"strict": true
+		"strict": true,
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true
 	},
-	"include": ["src"]
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
 }
