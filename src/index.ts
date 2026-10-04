@@ -5,6 +5,7 @@ import { PasswordUI } from "@openauthjs/openauth/ui/password";
 import { GoogleProvider } from "@openauthjs/openauth/provider/google";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { object, string } from "valibot";
+import { rejectMalformedIssuerCookies } from "./observability/issuer-cookies";
 
 // Import local modules to ensure they're included in the bundle
 export { AuthClient, useAuth } from "./client-sdk";
@@ -56,6 +57,8 @@ const subjects = createSubjects({
 
 export default {
 	fetch(request: Request, env: Env, ctx: ExecutionContext) {
+		const cookieError = rejectMalformedIssuerCookies(request);
+		if (cookieError) return cookieError;
 		// This top section is just for demo purposes. In a real setup another
 		// application would redirect the user to this Worker to be authenticated,
 		// and after signing in or registering the user would be redirected back to
@@ -120,6 +123,13 @@ export default {
 					id: await getOrCreateUser(env, email || "", profile),
 				});
 			},
+		}).onError((_error, context) => {
+			// The upstream handler logs raw provider errors and redirects them.
+			// Emit only an application-generated ID, never error/query contents.
+			const requestId = crypto.randomUUID();
+			console.error(JSON.stringify({ event: "authentication_failed", requestId }));
+			context.header("Cache-Control", "no-store");
+			return context.json({ error: "authentication_failed", requestId }, 400);
 		}).fetch(request, env, ctx);
 	},
 } satisfies ExportedHandler<Env>;
