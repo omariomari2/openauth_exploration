@@ -9,8 +9,9 @@ Scope: the Google-first authentication demo approved by the owner; see `SPEC.md`
 - Validate Google's UserInfo response and bind identity by provider subject,
   never automatically by email. Record legacy-account conflict handling.
 - Keep the demo and profile API same-origin. Use D1 for atomic transaction
-  consumption and revocable opaque browser sessions; retain KV for OpenAuth's
-  storage. Do not promise globally atomic behavior from eventual-consistent KV.
+  consumption, revocable opaque browser sessions and immutable issuer keys;
+  retain KV for OpenAuth's OAuth state. Do not promise globally atomic behavior
+  from eventual-consistent KV.
 - Use short-lived OpenAuth access tokens and do not retain provider tokens longer
   than required. The browser demo can establish a bounded application session
   after verification; its logout contract is independent of Google sign-out.

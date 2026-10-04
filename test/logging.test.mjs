@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { Miniflare } from "miniflare";
@@ -35,6 +35,11 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
   let failure;
   let malformed;
   try {
+    const database = await runtime.getD1Database("AUTH_DB", "auth");
+    for (const file of (await readdir("migrations")).filter((name) => name.endsWith(".sql")).sort()) {
+      const sql = await readFile(path.join("migrations", file), "utf8");
+      await database.exec(sql.replace(/^--.*$/gm, "").replace(/\r?\n/g, " "));
+    }
     const auth = await runtime.getWorker("auth");
     await auth.fetch("https://auth.example.test/.well-known/jwks.json?code=sentinel-code&state=sentinel-state&access_token=sentinel-token");
     failure = await auth.fetch("https://auth.example.test/google/callback?error=access_denied&error_description=sentinel-private-error", { redirect: "manual" });

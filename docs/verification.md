@@ -118,3 +118,21 @@ Google login works. Those checks remain open in `tasks/todo.md`.
 - The browser UI, signed-bearer `/userinfo`, profile edits/deletion, CI, real-browser
   checks and real Google deployment verification remain unfinished. The current
   authenticated root returns profile JSON, not the final demo interface.
+
+## Deterministic issuer keys
+
+- Thirteen adapter tests pass against real isolated D1 and KV. A scheduling barrier
+  makes twelve independent adapters observe an empty key table before running the
+  installed OpenAuth generators; all converge on one persisted key per purpose.
+  Tests cover immutability, corrupt rows, generic errors, legacy-key isolation and
+  preservation of existing user/session rows by the additive migration.
+- A bundled-Worker regression failed before wiring the adapter, then passed:
+  concurrent provider/JWKS requests use D1 keys and leave no key material in KV.
+  Twenty focused key, logging and runtime tests plus TypeScript build pass. The
+  logging fixture now applies migrations because issuer keys require D1.
+  Independent adapter review found no actionable issues. This is local evidence,
+  not a multi-region deployment or real Google/browser verification.
+- The separate intermittent callback failure was localized to the upstream KV
+  write. A deterministic real-KV probe confirms that its floor calculation turns
+  59,999 remaining milliseconds into an unsupported TTL of 59 seconds. That fix
+  is a separate slice; a full-suite pass is still required afterward.

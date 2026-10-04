@@ -10,10 +10,10 @@
   Verify clean install, build, dry-run and a real-runtime baseline test.
 - [x] Identity: add provider-subject mapping and fail-closed Google profile parsing.
   Verify malformed/unverified profiles, repeat/concurrent login and email conflict.
-- [ ] Resolve confirmed cold-start issuer encryption-key initialization race.
-  Concurrent initial requests must not invalidate another browser's cookie.
-  Investigate the separately observed intermittent Google-callback fixture failure;
-  do not assume the cold-start finding explains a mid-suite failure.
+- [x] Resolve cold-start issuer key initialization with one immutable D1 winner.
+  Verify twelve concurrent creators and the actual bundled Worker key storage.
+- [ ] Fix the separate upstream KV expiry-rounding failure (59-second TTL from
+  a 60-second authorization code). Preserve logical expiry; rerun full flows.
 - [ ] Profile API: verify signed subject/audience and load only the current user.
   Verify missing/forged/expired/wrong-issuer/wrong-audience/cross-user requests.
 - [ ] Browser session: one-time PKCE/state transaction, exact callback registration,

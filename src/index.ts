@@ -1,5 +1,5 @@
 import { issuer } from "@openauthjs/openauth";
-import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
+import { createIssuerStorage } from "./issuer-storage";
 import { GoogleProvider } from "@openauthjs/openauth/provider/google";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { object, string } from "valibot";
@@ -69,9 +69,7 @@ async function handleRequest(request: Request, env: DemoEnv, ctx: ExecutionConte
 	const cookieError = rejectMalformedIssuerCookies(request);
 	if (cookieError) return cookieError;
 	const auth = issuer({
-		storage: CloudflareStorage({
-			namespace: env.AUTH_STORAGE,
-		}),
+		storage: createIssuerStorage(env.AUTH_DB, env.AUTH_STORAGE),
 		subjects,
 		allow: async ({ clientID, redirectURI, audience }) => clientID === settings.clientID &&
 			redirectURI === settings.callbackURI && audience === undefined,
