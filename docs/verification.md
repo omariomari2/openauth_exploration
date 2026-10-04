@@ -54,3 +54,16 @@ Google login works. Those checks remain open in `tasks/todo.md`.
 - The full local suite now passes 40 tests and TypeScript builds. HTTP cookie,
   CSRF and browser integration are still pending; these helpers alone do not prove
   a secure browser login.
+
+## Strict access-token verifier
+
+- Thirty-seven signed-token tests pass for ES256 signatures, exact issuer and
+  single-client audience, required expiry/subject claims, access/user schema,
+  forged signatures, malformed input and key rotation. The returned identity is
+  `properties.id`, not the JWT subject. Verification never refreshes a token.
+- JOSE 5.9.6 is declared directly at its existing installed version. A fresh local
+  JWKS resolver uses only caller-supplied trusted keys; it performs no network IO.
+- Independent review checked the implementation against OpenAuth's emitted claims
+  and JOSE's validation semantics, reran all 37 tests and found no actionable issues.
+- This verifier is not yet connected to the protected HTTP API. Passing its unit
+  tests does not establish end-to-end access control or a working browser session.
