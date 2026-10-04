@@ -53,7 +53,7 @@ export async function handleBrowserRequest(
 ): Promise<Response | null> {
   const url = new URL(request.url);
   const methods: Record<string, string> = {
-    "/": "GET", "/login": "GET", "/callback": "GET", "/api/profile": "GET, PATCH",
+    "/login": "GET", "/callback": "GET", "/api/profile": "GET, PATCH",
     "/api/account": "DELETE", "/logout": "POST",
   };
   if (!(url.pathname in methods)) return null;
@@ -109,9 +109,7 @@ export async function handleBrowserRequest(
 
   const session = await readSession(env.AUTH_DB, sessionToken);
   const user = session ? await readProfile(env.AUTH_DB, session.userId) : null;
-  if (!session || !user) {
-    return url.pathname === "/" ? new Response(null, { status: 302, headers: { Location: "/login" } }) : error("unauthorized", 401);
-  }
+  if (!session || !user) return error("unauthorized", 401);
   if (["/api/profile", "/api/account"].includes(url.pathname) && (url.search || request.headers.has("Authorization"))) {
     return error("invalid_request", 400);
   }

@@ -59,7 +59,7 @@
 		"setup": "npm run db:create && npm run kv:create && npm run secrets:set",
 		"setup:secrets": "echo 'Setting up secrets...' && wrangler secret put GOOGLE_CLIENT_ID && wrangler secret put GOOGLE_CLIENT_SECRET",
 		"test:deploy": "npm run build && wrangler deploy --dry-run",
-		"build": "tsc",
+		"build": "tsc && tsc -p tsconfig.browser.json",
 		"clean": "rm -rf dist"
 	}
 }

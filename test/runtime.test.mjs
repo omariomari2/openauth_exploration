@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { Miniflare } from "miniflare";
-import { authorizationPath, ORIGIN } from "./helpers/worker.mjs";
+import { authorizationPath, loadWorkerModules, ORIGIN } from "./helpers/worker.mjs";
 
 let runtime;
 let database;
@@ -11,7 +11,7 @@ let database;
 before(async () => {
   runtime = new Miniflare({
     // Wrangler already bundled the dependency graph; workerd resolves its built-ins.
-    modules: [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }],
+    modules: await loadWorkerModules(),
     compatibilityDate: "2025-10-08",
     compatibilityFlags: ["nodejs_compat"],
     kvNamespaces: ["AUTH_STORAGE"],
@@ -37,8 +37,9 @@ after(async () => {
 
 test("the bundled Worker responds in workerd without cloud credentials", async () => {
   const response = await runtime.dispatchFetch("https://auth.example.test/", { redirect: "manual" });
-  assert.equal(response.status, 302);
-  assert.equal(new URL(response.headers.get("location"), ORIGIN).pathname, "/login");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /^text\/html/);
+  assert.match(await response.text(), /<h1[^>]*>Private profile<\/h1>/);
 });
 
 test("the bundled OpenAuth issuer offers only Google login", async () => {

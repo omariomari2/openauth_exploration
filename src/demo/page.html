@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Private profile · OpenAuth demo</title>
+  <meta name="description" content="A student demo of Google sign-in and a private profile, built with OpenAuth and Cloudflare Workers.">
+  <link rel="stylesheet" href="/assets/demo.css">
+  <script type="module" src="/assets/demo.mjs"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <p class="eyebrow"><span class="brand-mark" aria-hidden="true">oa.</span> A student authentication demo</p>
+      <h1>Private profile</h1>
+      <p class="intro">Sign in, make it yours, and see how a private account works.</p>
+    </header>
+    <main id="main">
+      <div class="session-status">
+        <p id="status" role="status" aria-live="polite" tabindex="-1">Checking your session…</p>
+        <button id="retry" class="secondary" type="button" hidden>Retry loading profile</button>
+      </div>
+      <noscript><p class="notice">JavaScript is required for this demo. Enable it and reload to sign in and manage your profile.</p></noscript>
+      <section id="signed-out" class="panel" aria-labelledby="sign-in-title" hidden>
+        <p class="eyebrow">Your account starts here</p>
+        <h2 id="sign-in-title">Sign in</h2>
+        <p>Continue with Google to create or open your demo profile. Your Google email and name are used for that profile.</p>
+        <a id="login" class="button primary" href="/login">Continue with Google</a>
+        <p class="help sign-in-help">Your session lasts one hour and uses an HttpOnly cookie. Signing out here ends this demo session; it does not sign you out of Google.</p>
+      </section>
+      <section id="account" class="panel" aria-labelledby="profile-title" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">Only visible when signed in</p><h2 id="profile-title">Your profile</h2></div>
+          <button id="logout" class="secondary" type="button" disabled>Sign out</button>
+        </div>
+        <dl class="identity">
+          <div><dt>Email</dt><dd id="email"></dd></div>
+          <div><dt>Account ID</dt><dd id="account-id" class="account-id"></dd></div>
+        </dl>
+        <form id="profile-form" method="post" action="/api/profile">
+          <fieldset id="profile-fields" disabled>
+            <legend>Edit your name</legend>
+            <p id="name-help" class="help">Names are optional. Leave a field blank to clear it. Up to 100 characters each.</p>
+            <div class="name-fields">
+              <div class="field"><label for="first-name">First name</label><input id="first-name" name="firstName" type="text" maxlength="100" autocomplete="given-name" aria-describedby="name-help"></div>
+              <div class="field"><label for="last-name">Last name</label><input id="last-name" name="lastName" type="text" maxlength="100" autocomplete="family-name" aria-describedby="name-help"></div>
+            </div>
+            <div class="actions"><button id="save" class="primary" type="submit">Save changes</button></div>
+          </fieldset>
+        </form>
+        <button id="refresh" class="secondary refresh" type="button" disabled>Refresh profile</button>
+        <section class="deletion" aria-labelledby="deletion-heading">
+          <h2 id="deletion-heading">Delete account</h2>
+          <p>Finished exploring? You can remove your account from this demo.</p>
+          <button id="delete-open" class="danger-outline" type="button" disabled>Delete demo account</button>
+          <section id="delete-confirmation" class="confirmation" tabindex="-1" aria-labelledby="delete-title" hidden>
+            <h3 id="delete-title">Delete this demo account?</h3>
+            <p>You are deleting the demo account for <strong id="delete-email"></strong>.</p>
+            <p>This removes your demo profile and its sessions. Your Google account is unaffected. This action cannot be undone.</p>
+            <div class="actions"><button id="delete-confirm" class="danger" type="button">Yes, delete my account</button><button id="delete-cancel" class="secondary" type="button">Keep my account</button></div>
+          </section>
+        </section>
+      </section>
+      <aside class="retention" aria-labelledby="retention-title">
+        <h2 id="retention-title">A note about your data</h2>
+        <p>Deleted data may remain in D1 backup history for up to 7 days on a Free plan or 30 days on a Paid plan. This deployment’s plan is still to be confirmed. Existing authorization grants may remain for up to one hour, but cannot access a deleted account.</p>
+      </aside>
+    </main>
+    <footer><p>OpenAuth <span aria-hidden="true">·</span> Workers <span aria-hidden="true">·</span> D1 <span aria-hidden="true">·</span> KV</p><p>Built to learn how sign-in works.</p></footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "esnext", "module": "esnext", "moduleResolution": "bundler",
+    "lib": ["esnext", "dom", "dom.iterable"], "types": [],
+    "allowJs": true, "checkJs": true, "noEmit": true, "strict": true
+  },
+  "include": ["src/demo/*.mjs"]
+}

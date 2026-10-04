@@ -54,9 +54,36 @@ Errors use `{ "error": "code" }`: `400 invalid_profile` for invalid JSON/schema,
 Unsupported profile methods return `405` with `Allow: GET, PATCH`.
 
 Repeating the same field assignment is idempotent, but concurrent updates to the
-same field are last-write-wins. After an uncertain network result, read the profile
-before retrying so an automatic retry does not overwrite a newer edit. Names are
-data, not HTML; browser renderers must use text/escaped output.
+same field are last-write-wins. A timeout does not prove the write failed, and a
+later read does not prove an earlier in-flight write has settled. Do not retry
+automatically. The browser UI requires explicit reauthentication after an unknown
+mutation outcome. Names are data, not HTML; renderers must use text/escaped output.
+
+## Browser screen
+
+`GET /` is now a public static HTML shell, identical for signed-in and anonymous
+requests. It is not a profile JSON endpoint; use `/api/profile` for that. The
+HTML, CSS and JavaScript are bundled Text modules served by this Worker, with
+same-origin CSP and no external scripts or asset host. Both Worker TypeScript and
+browser JavaScript receive strict type checking from `npm run build`.
+
+The screen loads the private profile separately. It keeps its CSRF token only in
+memory, renders names as input values/text, sends only changed name fields, and
+requires a second account-bound confirmation for deletion. Sign-out, deletion or
+an invalid session clears personal DOM, form values and the confirmation.
+
+Visible idle sessions are revalidated every sixty seconds. A dirty draft retains
+its original baseline only while both account ID and CSRF token match. Refresh
+discards unsaved edits; a changed account/session discards the old draft too.
+Page hiding clears private state and returning revalidates it. Background timers
+may be throttled; server-side authorization and expiry remain authoritative.
+
+Only one mutation runs at a time. Pending mutations suspend reads, and stale read
+responses cannot replace newer state. An unknown mutation result, including hiding
+the page before its result arrives, locks that document and offers `/login`; it
+does not retry the write or resume editing after a GET. The callback revokes the
+previous browser session, and each profile/account write rechecks its exact live
+session in SQL. This is not global request serialization or an idempotency-key API.
 
 ## Account deletion
 
@@ -97,4 +124,4 @@ plan and restore procedure must be documented for the isolated deployment before
 launch; a pre-deletion restore could reintroduce account data.
 
 The legacy SDK/examples have not yet been replaced and are not supported
-integrations. The browser interface and live deployment remain unfinished.
+integrations. Real Google login and the isolated live deployment remain unverified.

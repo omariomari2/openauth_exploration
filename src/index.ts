@@ -8,6 +8,7 @@ import { fetchGoogleProfile, getOrCreateGoogleUser } from "./identity";
 import { prepareIssuerRequest, readAuthSettings, type DemoEnv } from "./issuer-policy";
 import { handleBrowserRequest } from "./browser-auth";
 import { handleBearerProfileRequest } from "./bearer-profile";
+import { handleDemoRequest } from "./demo";
 import { translateIssuerCookies, protectIssuerCookies } from "./observability/issuer-cookie-boundary";
 
 // Import local modules to ensure they're included in the bundle
@@ -64,6 +65,8 @@ async function handleRequest(request: Request, env: DemoEnv, ctx: ExecutionConte
 	catch { return Response.json({ error: "issuer_not_configured" }, { status: 503 }); }
 	const prepared = prepareIssuerRequest(request, settings);
 	if (prepared instanceof Response) return prepared;
+	const demo = handleDemoRequest(prepared);
+	if (demo) return demo;
 	const translated = translateIssuerCookies(prepared);
 	if (translated instanceof Response) return translated;
 	request = translated;
@@ -130,7 +133,10 @@ export default {
 		response.headers.set("Referrer-Policy", "no-referrer");
 		response.headers.set("X-Content-Type-Options", "nosniff");
 		response.headers.set("X-Frame-Options", "DENY");
-		response.headers.set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+		const demoPage = new URL(request.url).pathname === "/" && response.status === 200 &&
+			response.headers.get("Content-Type")?.startsWith("text/html");
+		response.headers.set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" +
+			(demoPage ? "; script-src 'self'; style-src 'self'; connect-src 'self'" : ""));
 		if (new URL(request.url).protocol === "https:") response.headers.set("Strict-Transport-Security", "max-age=31536000");
 		return response;
 	},
