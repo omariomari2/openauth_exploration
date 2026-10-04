@@ -44,3 +44,13 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   non-200 status, preventing credential forwarding. The fixed bundled flow passes.
 - Independent review found no actionable issues in this slice. These checks use
   provider fixtures, not real Google accounts or browser sessions.
+
+## Browser-authentication persistence
+
+- Thirteen real-D1 tests pass for independent random browser binding, atomic
+  single-use callback consumption (one winner among twelve simultaneous calls),
+  expiry, hashed session tokens, logout, per-user isolation and deletion cleanup.
+- An independent reviewer found no actionable issues and reran all thirteen tests.
+- The full local suite now passes 40 tests and TypeScript builds. HTTP cookie,
+  CSRF and browser integration are still pending; these helpers alone do not prove
+  a secure browser login.
