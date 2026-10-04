@@ -25,7 +25,8 @@ payments, additional login providers, and automatic resume edits are out of scop
 
 Baseline: `npm ci --ignore-scripts`, `npm run build`, and
 `node node_modules/wrangler/bin/wrangler.js deploy --dry-run`.
-Do not run the existing `npm run deploy`: its predeploy hook mutates remote D1.
+Remote migrations are explicit (`npm run migrate:remote`), never deploy hooks.
+Do not deploy or migrate until dedicated resource bindings are configured.
 
 Target commands, to be implemented and verified:
 

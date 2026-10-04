@@ -5,7 +5,7 @@
 - [x] Review architecture/security contract before implementation; incorporate
   browser-bound callbacks, request-log redaction, prevalidated redirects and
   configured issuer origin. Owner chose fresh-context reviews and tests only.
-- [ ] Toolchain: triage audit, pin compatible dependencies, disable install scripts,
+- [x] Toolchain: triage audit, pin compatible dependencies, disable install scripts,
   add a runnable test harness and remove automatic remote migration hooks.
   Verify clean install, build, dry-run and a real-runtime baseline test.
 - [ ] Identity: add provider-subject mapping and fail-closed Google profile parsing.

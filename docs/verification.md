@@ -13,3 +13,12 @@
 
 This is a baseline, not evidence that authentication is secure or that real
 Google login works. Those checks remain open in `tasks/todo.md`.
+
+## Toolchain and explicit deployment operations
+
+- Dependency upgrades: four runtime tests and TypeScript pass before/after each
+  change; clean `npm ci --ignore-scripts` and full audit pass with zero advisories.
+- The deployment-script regression failed on the automatic remote migration hook
+  before its removal, then passed. Remote migrations now require `migrate:remote`.
+- Removed renamed-Worker dev/prod shortcuts that shared the same database/KV.
+  Existing bindings are unchanged and must not be used for the isolated demo.
