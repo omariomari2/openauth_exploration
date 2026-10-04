@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { Miniflare } from "miniflare";
+import { loadWorkerModules } from "./helpers/worker.mjs";
 
 test("OAuth query values and provider errors stay out of runtime logs", { timeout: 20000 }, async () => {
   let output = "";
@@ -11,7 +12,7 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
   const runtime = new Miniflare({
     workers: [{
       name: "auth",
-      modules: [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }],
+      modules: await loadWorkerModules(),
       compatibilityDate: "2025-10-08",
       compatibilityFlags: ["nodejs_compat"],
       kvNamespaces: ["AUTH_STORAGE"],

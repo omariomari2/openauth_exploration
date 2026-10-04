@@ -8,13 +8,28 @@ export const ORIGIN = "https://auth.example.test";
 export const CLIENT_ID = "openauth-demo";
 export const VERIFIER = "v".repeat(43);
 
-export async function createTestApp({ origin = ORIGIN, serve = false,
-  modules = [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }],
-} = {}) {
+export async function loadWorkerModules(modules = [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }]) {
+  const bundlePath = path.resolve("dist/worker/index.js");
+  const bundle = await readFile(bundlePath, "utf8");
+  const loaded = [...modules];
+  const paths = new Set(loaded.map((module) => path.resolve(module.path)));
+  // Read only Wrangler's current hashed Text imports, not stale output files or
+  // the ESM dependency graph (whose workerd built-ins must resolve in workerd).
+  for (const [, asset] of bundle.matchAll(/^import .+ from "(\.\/[a-f0-9]{40}-[^"/]+\.(?:html|css|mjs))";$/gm)) {
+    const assetPath = path.resolve(path.dirname(bundlePath), asset);
+    if (!paths.has(assetPath)) {
+      loaded.push({ type: "Text", path: assetPath });
+      paths.add(assetPath);
+    }
+  }
+  return loaded;
+}
+
+export async function createTestApp({ origin = ORIGIN, serve = false, modules } = {}) {
   const fetchMock = createFetchMock();
   fetchMock.disableNetConnect();
   const options = {
-    modules,
+    modules: await loadWorkerModules(modules),
     ...(serve ? { host: "127.0.0.1", port: 0 } : {}),
     compatibilityDate: "2025-10-08", compatibilityFlags: ["nodejs_compat"],
     kvNamespaces: ["AUTH_STORAGE"], d1Databases: ["AUTH_DB"], fetchMock,
