@@ -79,3 +79,13 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   fixed ASCII routes. The reviewer checked the fix and found no further helper issues.
 - The helper lands separately from HTTP wiring. The existing demo redirect needs
   a browser-bound login transaction before this stricter policy can be enabled.
+
+## Issuer cookie boundary adapter
+
+- Seventeen focused tests pass using a real JOSE-encrypted fixture. The adapter
+  maps OpenAuth's two internal cookie names to host-prefixed HTTPS names, strips
+  untrusted legacy names, rejects duplicates and preserves cookie deletion.
+- Independent review found no actionable adapter issues and reran all 17 tests.
+  The adapter is committed separately; HTTP wiring and the two-browser transplant
+  regression belong to the following browser-flow change. These tests do not
+  substitute for verification of prefix enforcement in a real browser.
