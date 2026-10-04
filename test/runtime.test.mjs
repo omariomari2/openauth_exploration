@@ -39,14 +39,13 @@ test("the bundled Worker responds in workerd without cloud credentials", async (
   assert.equal(new URL(response.headers.get("location")).pathname, "/authorize");
 });
 
-test("the bundled OpenAuth issuer renders its provider selector", async () => {
+test("the bundled OpenAuth issuer offers only Google login", async () => {
   const response = await runtime.dispatchFetch(
     "https://auth.example.test/authorize?client_id=your-client-id&redirect_uri=https%3A%2F%2Fauth.example.test%2Fcallback&response_type=code",
     { redirect: "manual" },
   );
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type"), /text\/html/);
-  assert.match(await response.text(), /google/i);
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "/google/authorize");
 });
 
 test("all existing migrations create usable isolated D1 tables", async () => {

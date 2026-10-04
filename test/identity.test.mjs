@@ -47,7 +47,7 @@ test("Google UserInfo uses the fixed HTTPS endpoint and a bearer header without 
   t.mock.method(globalThis, "fetch", async (url, options) => {
     assert.equal(url, "https://openidconnect.googleapis.com/v1/userinfo");
     assert.equal(options.headers.Authorization, "Bearer test-only-access-token");
-    assert.equal(options.redirect, "error");
+    assert.equal(options.redirect, "manual");
     assert.equal(options.signal instanceof AbortSignal, true);
     return Response.json({ ...validProfile, picture: "https://images.example.test/ignored" });
   });

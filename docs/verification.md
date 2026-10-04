@@ -31,4 +31,16 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   or oversized provider responses fail closed. TypeScript passes.
 - The identity schema and mapping helpers received an independent security review
   with no actionable findings. They are not yet evidence of a working login flow:
-  issuer integration and deployed Google verification remain pending.
+  deployed Google verification remains pending.
+
+## Bundled Google issuer integration
+
+- Integration tests traverse the actual authorization/provider/callback routes,
+  mocking only Google's token and UserInfo endpoints; other outbound network calls
+  are blocked. Two verified subjects create distinct users; unverified email is
+  rejected without creating a user. Password routes return 404.
+- The Worker regression exposed an unsupported `redirect: "error"` setting that
+  Node helper tests missed. UserInfo now uses manual redirects and rejects every
+  non-200 status, preventing credential forwarding. The fixed bundled flow passes.
+- Independent review found no actionable issues in this slice. These checks use
+  provider fixtures, not real Google accounts or browser sessions.

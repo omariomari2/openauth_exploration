@@ -1,11 +1,10 @@
 import { issuer } from "@openauthjs/openauth";
 import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
-import { PasswordProvider } from "@openauthjs/openauth/provider/password";
-import { PasswordUI } from "@openauthjs/openauth/ui/password";
 import { GoogleProvider } from "@openauthjs/openauth/provider/google";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { object, string } from "valibot";
 import { rejectMalformedIssuerCookies } from "./observability/issuer-cookies";
+import { fetchGoogleProfile, getOrCreateGoogleUser } from "./identity";
 
 // Import local modules to ensure they're included in the bundle
 export { AuthClient, useAuth } from "./client-sdk";
@@ -85,25 +84,13 @@ export default {
 				namespace: env.AUTH_STORAGE,
 			}),
 			subjects,
+			ttl: { access: 300, refresh: 3600, reuse: 0 },
 			providers: {
-				password: PasswordProvider(
-					PasswordUI({
-						// eslint-disable-next-line @typescript-eslint/require-await
-						sendCode: async (email, code) => {
-							// This is where you would email the verification code to the
-							// user, e.g. using Resend:
-							// https://resend.com/docs/send-with-cloudflare-workers
-							console.log(`Sending code ${code} to ${email}`);
-						},
-						copy: {
-							input_code: "Code (check Worker logs)",
-						},
-					}),
-				),
 				google: GoogleProvider({
 					clientID: env.GOOGLE_CLIENT_ID,
 					clientSecret: env.GOOGLE_CLIENT_SECRET,
-					scopes: ["profile", "email"],
+					scopes: ["openid", "profile", "email"],
+					pkce: true,
 				}),
 			},
 			theme: {
@@ -117,10 +104,9 @@ export default {
 				},
 			},
 			success: async (ctx, value) => {
-				const email = value.provider === "password" ? value.email : (value as any).email;
-				const profile = value.provider === "google" ? (value as any).profile : undefined;
+				const profile = await fetchGoogleProfile(value.tokenset.access);
 				return ctx.subject("user", {
-					id: await getOrCreateUser(env, email || "", profile),
+					id: await getOrCreateGoogleUser(env.AUTH_DB, profile),
 				});
 			},
 		}).onError((_error, context) => {
@@ -133,33 +119,3 @@ export default {
 		}).fetch(request, env, ctx);
 	},
 } satisfies ExportedHandler<Env>;
-
-async function getOrCreateUser(env: Env, email: string, profile?: any): Promise<string> {
-	const result = await env.AUTH_DB.prepare(
-		`
-		INSERT INTO user (email, first_name, last_name, avatar_url, last_login)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT (email) DO UPDATE SET 
-			first_name = COALESCE(?, first_name),
-			last_name = COALESCE(?, last_name),
-			avatar_url = COALESCE(?, avatar_url),
-			last_login = CURRENT_TIMESTAMP
-		RETURNING id;
-		`,
-	)
-		.bind(
-			email,
-			profile?.given_name || null,
-			profile?.family_name || null,
-			profile?.picture || null,
-			profile?.given_name || null,
-			profile?.family_name || null,
-			profile?.picture || null
-		)
-		.first<{ id: string }>();
-	if (!result) {
-		throw new Error(`Unable to process user: ${email}`);
-	}
-	console.log(`Found or created user ${result.id} with email ${email}`);
-	return result.id;
-}

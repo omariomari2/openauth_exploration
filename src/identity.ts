@@ -33,7 +33,7 @@ export async function fetchGoogleProfile(accessToken: string): Promise<GooglePro
     // https://developers.google.com/identity/openid-connect/openid-connect#obtaininguserprofileinformation
     const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-      redirect: "error",
+      redirect: "manual",
       signal: controller.signal,
     });
     if (response.status !== 200 || response.redirected || !response.body ||
