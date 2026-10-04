@@ -1,136 +1,211 @@
-# Private profile API
+# API and security behavior
 
-The demo exposes two deliberately separate credential paths. Neither accepts a
-caller-selected account ID. Responses are private, same-origin and `no-store`.
+The service has separate browser and bearer APIs. Each request selects an account from verified credentials, not a caller-supplied account ID.
+Responses use `Cache-Control: no-store`. The origin policy permits only the configured application origin.
 
-## Bearer access
+## Read a profile
 
-`GET /userinfo` requires `Authorization: Bearer <access-token>` with one space.
-The scheme is case-insensitive; token contents are not. Cookies cannot replace a
-missing or invalid token, and query parameters are rejected. This is the demo's
-profile endpoint, not a claim of full OpenID Connect UserInfo compatibility.
+### Browser access
 
-The signature and exact issuer, client audience, expiry and access-user claims
-are verified against the configured issuer's public keys in the same Worker.
-`properties.id` selects the D1 account; the JWT subject and profile/role claims do
-not. A deleted or missing account is unauthorized even if its token has not yet
-expired. Signing up again creates a different ID and does not revive old tokens.
+`GET /api/profile` uses the opaque HttpOnly session cookie from `/login` and `/callback`.
+The response contains `user` and the session's `csrfToken`.
+The CSRF token does not authenticate a request.
 
-Success: `200 { "user": { "id", "email", "firstName", "lastName", "role", "createdAt" } }`.
-The field list describes the response shape, not literal JSON values. There are
-no session, CSRF, provider-token, address or device fields in this response.
-Unauthorized requests return `401 { "error": "unauthorized" }` and
-`WWW-Authenticate: Bearer`. Unsupported methods return `405` with `Allow: GET`;
-query parameters return `400 { "error": "invalid_request" }`.
+### Bearer access
 
-## Browser access
+Send `GET /userinfo` with `Authorization: Bearer <access-token>` and one space between the scheme and token.
+The scheme is case-insensitive. The token is case-sensitive.
+Cookies cannot replace a missing or invalid token.
 
-`GET /api/profile` uses the opaque HttpOnly session cookie established by `/login`
-and `/callback`. It returns the same `user` shape plus that session's `csrfToken`.
-The CSRF token is not an authentication credential. `POST /logout` requires the
-exact application Origin and `X-CSRF-Token`; it revokes that browser session,
-not independently held bearer tokens or the Google login session.
+The Worker verifies the signature, exact issuer, client audience, expiry and access-user claims against the configured issuer's public keys.
+`properties.id` selects the D1 account. The JWT subject, profile claims and role claims do not select it.
+The response uses current D1 data.
 
-## Profile edits
+A missing or deleted account returns `401`, even before the token expires.
+A new signup creates a new account ID. Old tokens cannot access that account.
+This endpoint does not implement the full OpenID Connect UserInfo specification.
 
-`PATCH /api/profile` uses the browser session and requires the exact Origin plus
-`X-CSRF-Token`. Authorization headers and query parameters are rejected to avoid
-ambiguous credentials or account selectors. The only editable fields are
-`firstName` and `lastName`; omitted fields stay unchanged, while `null` or a blank
-trimmed string clears a field. Nonblank names may contain Unicode and punctuation,
-but no C0/C1 control characters, and are limited to 100 UTF-16 code units.
+### Profile response
 
-Send a nonempty JSON object using `Content-Type: application/json` (optional
-`charset=utf-8`). The actual UTF-8 body is capped at 4096 bytes and a five-second
-read deadline. ID, email, role and other fields cannot be set. Success returns the
-updated `user` and the existing `csrfToken`. The update preserves omitted columns
-inside SQL and rechecks the exact live session and CSRF token at the write itself.
-The database clock is used for expiry, not an earlier request timestamp.
+The bearer response has this field list, not literal JSON values:
 
-Errors use `{ "error": "code" }`: `400 invalid_profile` for invalid JSON/schema,
-`400 invalid_request` for a selector or Authorization header, `401 unauthorized`,
-`403 invalid_csrf`, `413 payload_too_large`, `415 unsupported_media_type`, or
-`408 request_timeout`. Origin-policy rejection may instead be `403 unrecognized_origin`.
-Unsupported profile methods return `405` with `Allow: GET, PATCH`.
+`200 { "user": { "id", "email", "firstName", "lastName", "role", "createdAt" } }`
 
-Repeating the same field assignment is idempotent, but concurrent updates to the
-same field are last-write-wins. A timeout does not prove the write failed, and a
-later read does not prove an earlier in-flight write has settled. Do not retry
-automatically. The browser UI requires explicit reauthentication after an unknown
-mutation outcome. Names are data, not HTML; renderers must use text/escaped output.
+It contains no session, CSRF, provider-token, address or device fields.
+The browser response adds `csrfToken` beside `user`.
 
-## Browser screen
+### Bearer errors
 
-`GET /` is now a public static HTML shell, identical for signed-in and anonymous
-requests. It is not a profile JSON endpoint; use `/api/profile` for that. The
-HTML, CSS and JavaScript are bundled Text modules served by this Worker, with
-same-origin CSP and no external scripts or asset host. Both Worker TypeScript and
-browser JavaScript receive strict type checking from `npm run build`.
+| Condition | Response |
+| --- | --- |
+| Missing or invalid credentials | `401 { "error": "unauthorized" }` and `WWW-Authenticate: Bearer` |
+| Query parameters | `400 { "error": "invalid_request" }` |
+| Unsupported method | `405` and `Allow: GET` |
 
-The screen loads the private profile separately. It keeps its CSRF token only in
-memory, renders names as input values/text, sends only changed name fields, and
-requires a second account-bound confirmation for deletion. Sign-out, deletion or
-an invalid session clears personal DOM, form values and the confirmation.
+## Change a profile
 
-Visible idle sessions are revalidated every sixty seconds. A dirty draft retains
-its original baseline only while both account ID and CSRF token match. Refresh
-discards unsaved edits; a changed account/session discards the old draft too.
-Page hiding clears private state and returning revalidates it. Background timers
-may be throttled; server-side authorization and expiry remain authoritative.
+1. Send `PATCH /api/profile` with the browser session cookie.
+2. Set `Origin` to the exact application origin.
+3. Set `X-CSRF-Token` to the current session's token.
+4. Set `Content-Type: application/json`. The optional `charset=utf-8` parameter is permitted.
+5. Send a nonempty JSON object with `firstName`, `lastName`, or both.
 
-Only one mutation runs at a time. Pending mutations suspend reads, and stale read
-responses cannot replace newer state. An unknown mutation result, including hiding
-the page before its result arrives, locks that document and offers `/login`; it
-does not retry the write or resume editing after a GET. The callback revokes the
-previous browser session, and each profile/account write rechecks its exact live
-session in SQL. This is not global request serialization or an idempotency-key API.
+Do not send an Authorization header or query parameters.
+The API rejects changes to ID, email, role and all other fields.
+It rejects C0 and C1 control characters before trimming a string.
+
+| Name value | Behavior |
+| --- | --- |
+| Omitted field | Keep the stored value |
+| `null` or a blank string after trimming | Clear the field |
+| Nonblank string | Permit Unicode and punctuation |
+| More than 100 UTF-16 code units after trimming | Reject the value |
+
+The body limit is 4096 UTF-8 bytes. The read deadline is five seconds.
+Success returns the updated `user` and the existing `csrfToken`.
+
+SQL preserves omitted columns and verifies the exact session and CSRF token at the write.
+Expiry uses the database clock, not the request's earlier timestamp.
+
+### Input errors
+
+Errors use `{ "error": "code" }`.
+
+| Status and code | Cause |
+| --- | --- |
+| `400 invalid_profile` | Invalid JSON or profile fields |
+| `400 invalid_request` | An account selector or Authorization header |
+| `413 payload_too_large` | The body exceeds the size limit |
+| `415 unsupported_media_type` | Unsupported Content-Type |
+| `408 request_timeout` | The body read exceeds the deadline |
+
+### Access and method errors
+
+| Status and code | Cause |
+| --- | --- |
+| `401 unauthorized` | No valid session |
+| `403 invalid_csrf` | Invalid CSRF token |
+| `403 unrecognized_origin` | The origin policy rejects the request |
+| `405` with `Allow: GET, PATCH` | Unsupported profile method |
+
+### Concurrent changes and timeouts
+
+Repeated assignments of the same value are idempotent.
+For concurrent changes to one field, the last write wins.
+
+A timeout does not prove that the write failed.
+A later read does not prove that an earlier write finished.
+Do not retry automatically. The browser requires a new login after an unknown write result.
+
+## Sign out
+
+Send `POST /logout` with the browser session, exact application Origin and `X-CSRF-Token`.
+This revokes only that browser session.
+It does not revoke independent bearer tokens or sign the user out of Google.
 
 ## Account deletion
 
-`DELETE /api/account` requires the browser session, exact Origin and current
-`X-CSRF-Token`. Send no body, query parameters or Authorization header. The account
-comes only from that session; bearer tokens cannot authorize deletion. Like PATCH,
-the deletion statement rechecks the exact session, CSRF token and database-clock
-expiry. Success is `204` with no body and clears this browser's four login/session
-cookies. An already-deleted account returns `401`, not another success.
+1. Send `DELETE /api/account` with the browser session cookie.
+2. Set the exact application Origin and current `X-CSRF-Token`.
+3. Send no body, query parameters or Authorization header.
 
-The single D1 statement deletes the user and cascades their Google identity,
-all browser sessions, and any legacy session/address rows. Other accounts and
-the issuer keys stay intact. A database error returns a generic `500` and does
-not report successful deletion or clear the cookies. Other errors are
-`400 invalid_request`, `401 unauthorized`, `403 invalid_csrf` (or the origin
-policy's `403 unrecognized_origin`), and `405` with `Allow: DELETE`.
+The account comes from the session. Bearer tokens cannot authorize deletion.
+The DELETE statement verifies the exact session, CSRF token and database-clock expiry.
 
-Subsequent browser/profile reads and authorization-code/refresh exchanges check
-the original D1 user ID and reject deleted accounts. A new Google sign-in may
-create a fresh account with a new ID; it cannot revive old credentials. This is
-account-data deletion, not a Google logout, Google-account deletion, or a ban.
+Success returns `204` without a body and clears this browser's four login and session cookies.
+A single D1 statement deletes the user and their Google identity, browser sessions, and legacy session and address rows.
+Other accounts and issuer keys remain unchanged.
 
-Requests that already read an authorized account before deletion may finish.
-In particular, an in-flight token exchange may issue credentials after deletion,
-but those credentials cannot access the deleted profile or renew again. Residual
-KV grants are not synchronously erased: authorization codes have a 60-second
-logical lifetime and refresh records a one-hour lifetime measured from their last
-write, including an in-flight write. KV's minimum physical TTL is 60 seconds;
-the adapter enforces the exact logical deadline separately.
+Deletion uses `400 invalid_request`, `401 unauthorized`, `403 invalid_csrf` and `403 unrecognized_origin` for the same request and credential errors.
+An already-deleted account returns `401`. Unsupported methods return `405` with `Allow: DELETE`.
+A database failure returns a generic `500`. It does not report success or clear cookies.
 
-Anonymous pending login transactions contain no linked account ID. Clearing the
-login cookie prevents this browser from completing its pending transaction;
-the row expires after ten minutes. Login-triggered and hourly scheduled cleanup
-remove expired transactions and one-hour browser sessions. Scheduled cleanup uses
-the same atomic D1 batch and leaves active credentials and accounts unchanged.
-Physical deletion happens at the next successful cleanup, not necessarily at the
-expiry instant; failed or delayed runs can extend retention, never authentication.
-See the [retention decision](decisions/007-authentication-retention.md). The hourly
-trigger is configured locally but live execution remains unverified.
-SQL deletion does not purge provider-managed backups. D1 currently retains
-[Time Travel history](https://developers.cloudflare.com/d1/reference/time-travel/)
-for seven days on Free and thirty days on Paid (checked 2026-10-03). The selected
-plan and restore procedure must be documented for the isolated deployment before
-launch; a pre-deletion restore could reintroduce account data.
+Deletion removes account data. It does not delete the Google account, end the Google session, or ban future signup.
+A new Google sign-in can create a new account ID. It cannot restore old credentials.
 
-The legacy SDK, token helpers, middleware and standalone examples were removed;
-the [integration guides](../examples/README.md) describe the intentional breaking
-change and point to the tested same-origin demo. There is no general-purpose SDK
-or arbitrary external client registration. Real Google login and the isolated
-live deployment remain unverified.
+### Requests that started before deletion
+
+A request that read an authorized account before deletion can finish.
+An active token exchange can also issue credentials after deletion.
+Those credentials cannot access the deleted profile or renew again.
+
+Later profile reads and authorization-code or refresh exchanges verify the original D1 user ID.
+They reject deleted accounts. Deletion does not immediately erase all KV grants.
+The expiry limits below also apply to writes that finish after deletion.
+
+## Browser behavior
+
+### Public page and private data
+
+`GET /` returns the same public HTML page for anonymous and signed-in requests.
+Use `/api/profile` for profile JSON.
+
+The Worker serves HTML, CSS and JavaScript as bundled Text modules.
+Its Content Security Policy permits same-origin resources. It uses no external scripts or asset host.
+`npm run build` strictly checks Worker TypeScript and browser JavaScript.
+
+The browser keeps the CSRF token only in memory.
+It sends only changed name fields and uses input values or text to display names.
+Render names as text or escaped output, never as HTML.
+
+### Session changes
+
+- Deletion requires a second confirmation for the displayed account.
+- Sign-out, deletion and invalid sessions clear personal DOM, form values and the confirmation.
+- Hiding the page clears private state. Returning to the page triggers a new profile read.
+- A visible idle page requests session validation every 60 seconds. Background timers can run late.
+- The server remains responsible for session expiry and authorization.
+
+An unsaved draft keeps its original baseline only while the account ID and CSRF token both match.
+Refresh discards unsaved edits. An account or session change also discards the old draft.
+
+### Pending writes
+
+The browser permits one write at a time.
+It suspends reads during that write and rejects stale read responses.
+
+An unknown write result locks the document and offers `/login`.
+This also applies when the page hides before the response arrives.
+The browser does not retry the write or resume edits after a GET.
+
+The callback revokes the previous browser session.
+Each profile or account write verifies that exact session in SQL.
+The service does not serialize all requests or provide an idempotency-key API.
+
+## Expiry and cleanup
+
+| Record | Expiry |
+| --- | --- |
+| Pending login transaction | Ten minutes |
+| Browser session | One hour |
+| Authorization code | 60 seconds |
+| Refresh record | One hour after its last write, including a write that finishes after deletion |
+
+Pending login transactions contain no linked account ID.
+Clearing the login cookie prevents that browser from completing its pending transaction.
+
+KV requires a minimum physical TTL of 60 seconds.
+The storage adapter separately enforces the exact logical deadline.
+
+Login and hourly scheduled cleanup remove expired login transactions and browser sessions.
+Both use the same atomic D1 batch. Active credentials and accounts remain unchanged.
+
+Physical deletion occurs at the next successful cleanup, not necessarily at expiry.
+A failed or delayed run can extend storage time, but cannot extend authentication.
+The hourly trigger exists in configuration. Live execution remains unverified.
+See the [retention decision](decisions/007-authentication-retention.md).
+
+### Backups
+
+SQL deletion does not remove provider-managed backups.
+D1 [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) retains history for seven days on Free and thirty days on Paid (checked 2026-10-03).
+A restore can reintroduce deleted account data.
+
+Before deployment, document the selected plan and restore procedure.
+
+## Scope and remaining checks
+
+The service has no general-purpose SDK or arbitrary external client registration.
+The [integration guide](../examples/README.md) describes the removal of the old SDK, token helpers, middleware and standalone examples.
+
+Real Google login and an isolated live deployment still need verification.
