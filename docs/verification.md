@@ -158,3 +158,16 @@ Google login works. Those checks remain open in `tasks/todo.md`.
 - These fixes resolve the two locally identified reliability defects. The UI,
   API mutations, CI and deployed two-account Google/browser verification remain
   unfinished. The branch is local only; no push or deployment was performed.
+
+## Bearer profile HTTP API
+
+- Nine bundled-Worker tests first failed because `/userinfo` did not exist, then
+  passed after wiring the handler. They cover real OpenAuth-issued access tokens,
+  two-account isolation, signed negative claims, forgery/tampering, header/query
+  ambiguity, browser-cookie fallback rejection and deleted/recreated accounts.
+  Only Google's external endpoints are mocked; no deployable auth bypass exists.
+- Current D1 profile fields and role are returned, not stale or extra JWT claims.
+  Fresh-context design/code review found no actionable issues in this slice.
+- All 161 tests in this committed slice pass (`node --test --test-concurrency=1`
+  over the tracked test files plus the new bearer test); TypeScript build passes.
+  Real Google accounts and browser behavior are still unverified.

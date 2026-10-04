@@ -14,12 +14,12 @@
   Verify twelve concurrent creators and the actual bundled Worker key storage.
 - [x] Fix the separate upstream KV expiry-rounding failure (59-second TTL from
   a 60-second authorization code). Preserve logical expiry; rerun full flows.
-- [ ] Profile API: verify signed subject/audience and load only the current user.
+- [x] Profile API: verify signed subject/audience and load only the current user.
   Verify missing/forged/expired/wrong-issuer/wrong-audience/cross-user requests.
 - [ ] Browser session: one-time PKCE/state transaction, exact callback registration,
   secure opaque cookie, expiry and logout. Verify negative/replay paths.
   HTTP flow and 17 integration tests are implemented; real-browser enforcement
-  and issuer-key reliability remain open.
+  remains open; issuer-key reliability has local regression coverage.
 - [ ] Demo: login, profile/API, logout and account-data deletion in the browser.
   Fix or clearly replace unsupported SDK/example paths; no token localStorage.
 - [ ] Checkpoint: complete local user flow with real workerd, D1 and KV; inspect

@@ -217,6 +217,7 @@ DIRECT_DEPLOYMENT_WORKFLOW.md
 !tasks/todo.md
 !docs/decisions/*.md
 !docs/verification.md
+!docs/profile-api.md
 
 # ARM architecture specific issues
 # Note: workerd package doesn't support Windows ARM64

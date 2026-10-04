@@ -7,6 +7,7 @@ import { rejectMalformedIssuerCookies } from "./observability/issuer-cookies";
 import { fetchGoogleProfile, getOrCreateGoogleUser } from "./identity";
 import { prepareIssuerRequest, readAuthSettings, type DemoEnv } from "./issuer-policy";
 import { handleBrowserRequest } from "./browser-auth";
+import { handleBearerProfileRequest } from "./bearer-profile";
 import { translateIssuerCookies, protectIssuerCookies } from "./observability/issuer-cookie-boundary";
 
 // Import local modules to ensure they're included in the bundle
@@ -107,7 +108,8 @@ async function handleRequest(request: Request, env: DemoEnv, ctx: ExecutionConte
 		return context.json({ error: "authentication_failed", requestId }, 400);
 	});
 	const issuerFetch = async (internal: Request) => auth.fetch(internal, env, ctx);
-	return await handleBrowserRequest(request, env, settings, issuerFetch) ?? issuerFetch(request);
+	return await handleBearerProfileRequest(request, env, settings, issuerFetch) ??
+		await handleBrowserRequest(request, env, settings, issuerFetch) ?? issuerFetch(request);
 }
 
 export default {
