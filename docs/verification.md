@@ -414,3 +414,17 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   cancellations or skips. The dependency audit reported zero advisories and
   actionlint 1.7.12 passed. Google is still a fixture; no hosted CI, push or
   deployment occurred.
+
+## Main publication and hosted CI (2026-10-03)
+
+- Published 31 atomic commits through `0c420a6` with a fast-forward push to `main`.
+  All 31 commits have `omariomari2` as their sole author and committer.
+- The fresh local checks passed: clean install, build, 206 backend tests,
+  26 Chromium tests and zero dependency advisories. The release review found no
+  blocker for source publication.
+- [GitHub run 37176367468](https://github.com/omariomari2/openauth_exploration/actions/runs/37176367468)
+  passed on Ubuntu 24.04 at `0c420a6`. It ran all 206 backend tests and 26 browser
+  tests without failures, skips or cancellations. The audit found zero advisories.
+- The owner chose source publication only. No Cloudflare sign-in, resource
+  creation, remote migration or deployment occurred. Live Google verification,
+  authentication throttling and required-check branch protection remain pending.

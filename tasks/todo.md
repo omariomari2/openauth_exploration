@@ -38,8 +38,9 @@
 - [x] Prepare credential-free CI with locked install and automated checks; lint and
   review its source. Document local setup, provider configuration, security and
   retention boundaries, breaking integrations and exact verification evidence.
-- [ ] After explicit push approval, verify a GitHub-hosted CI run and configure
-  required checks with owner approval. No hosted green-run claim yet.
+- [x] Publish to `main` with owner approval and verify GitHub-hosted CI.
+  Run 37176367468 passed 206 backend tests and 26 browser tests at `0c420a6`.
+- [ ] Configure required checks with owner approval. Branch protection is unchanged.
 - [x] Add hourly cleanup of expired sessions/login transactions and verify real
   scheduled events, active-data preservation, rollback, recovery and redacted logs
   locally. Live cron execution remains part of deployment verification.
@@ -47,7 +48,8 @@
   verify an absent file fails during a real CLI dry run. No such config exists yet.
 - [ ] Resolve the pre-public-deployment auth throttling gap with owner approval;
   repeated anonymous login starts currently write D1 without a rate limit.
-- [ ] Fresh-context security/quality review; resolve findings and rerun affected tests.
+- [x] Complete the pre-push release review and repeat the full local test suite.
+  No publication blocker remains. Public-deployment checks remain below.
 - [ ] Confirm Cloudflare account, isolated bindings and Google OAuth configuration.
 - [ ] Deploy isolated demo and verify real Google login for two separate accounts,
   protected data access, expiry/logout and cookie settings.

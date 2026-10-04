@@ -26,8 +26,8 @@ Fresh-context workflow review and a separate Linux portability source review
 found no actionable issue. The existing strict compiler checks cover Worker and
 browser code; this repository has no general-purpose source lint configuration.
 
-This is a prepared workflow, not evidence of a green GitHub-hosted run. The owner
-has prohibited pushing for now. After publication is explicitly approved, inspect
-the first hosted run and resolve any failures before making CI a required branch
-check. Branch protection and live-provider verification are still pending; no
-external repository settings were changed.
+The [first hosted run](https://github.com/omariomari2/openauth_exploration/actions/runs/37176367468)
+passed on `main` at `0c420a6`: 206 backend tests, 26 browser tests and zero audit
+advisories. The owner approved source publication only. Cloudflare deployment,
+live-provider verification and required-check branch protection remain pending.
+No repository settings changed.
