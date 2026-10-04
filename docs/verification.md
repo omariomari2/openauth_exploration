@@ -171,3 +171,22 @@ Google login works. Those checks remain open in `tasks/todo.md`.
 - All 161 tests in this committed slice pass (`node --test --test-concurrency=1`
   over the tracked test files plus the new bearer test); TypeScript build passes.
   Real Google accounts and browser behavior are still unverified.
+
+## Profile updates
+
+- The first HTTP test failed with `405` before PATCH existed. Seven input tests
+  and seven bundled-Worker tests now cover field allowlisting, clearing/omission,
+  Unicode, invalid controls, SQL/HTML-like data, CSRF, cross-account isolation,
+  concurrent independent edits and oversized/stalled bodies. The five-second
+  timeout is verified against both the reader and an actual Worker request.
+- Review reproduced acceptance of C1 controls; the focused regression failed
+  before extending the rejection range and passed afterward.
+- Three deterministic tests use a test-only entry wrapper around the unchanged
+  Worker and real D1. After the authenticated profile is read, the wrapper revokes,
+  expires or changes the CSRF token of that exact session, leaving another session
+  for the same user live. All writes are rejected. Disabling the SQL guard only in
+  the in-memory test module (`PROFILE_GUARD_MUTATION=1`) makes all three tests fail.
+  The earlier timing-dependent revocation test was replaced by these stronger tests.
+- Forty-six focused browser, bearer and profile tests pass, as does TypeScript.
+  The test wrapper is not part of the deployable bundle. Browser rendering and
+  account deletion are separate unfinished slices.

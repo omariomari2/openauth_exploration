@@ -4,6 +4,7 @@ import type { AuthSettings, DemoEnv } from "./issuer-policy";
 import { cleanupExpiredAuth, consumeLoginTransaction, createLoginTransaction,
   createSession, readSession, revokeSession } from "./browser-auth-storage";
 import { verifyAccessToken } from "./token-verification";
+import { readProfilePatch } from "./profile-input";
 
 export interface Profile {
   id: string;
@@ -46,9 +47,9 @@ export async function handleBrowserRequest(
   issuerFetch: (request: Request) => Promise<Response>,
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  const methods: Record<string, string> = { "/": "GET", "/login": "GET", "/callback": "GET", "/api/profile": "GET", "/logout": "POST" };
+  const methods: Record<string, string> = { "/": "GET", "/login": "GET", "/callback": "GET", "/api/profile": "GET, PATCH", "/logout": "POST" };
   if (!(url.pathname in methods)) return null;
-  if (request.method !== methods[url.pathname]) {
+  if (!methods[url.pathname].split(", ").includes(request.method)) {
     return new Response(null, { status: 405, headers: { Allow: methods[url.pathname] } });
   }
   const localFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -103,10 +104,34 @@ export async function handleBrowserRequest(
   if (!session || !user) {
     return url.pathname === "/" ? new Response(null, { status: 302, headers: { Location: "/login" } }) : error("unauthorized", 401);
   }
-  if (url.pathname === "/logout") {
+  if (url.pathname === "/api/profile" && (url.search || request.headers.has("Authorization"))) {
+    return error("invalid_request", 400);
+  }
+  if (request.method !== "GET") {
     if (request.headers.get("Origin") !== settings.origin || request.headers.get("X-CSRF-Token") !== session.csrfToken) {
       return error("invalid_csrf", 403);
     }
+  }
+  if (url.pathname === "/api/profile" && request.method === "PATCH") {
+    const patch = await readProfilePatch(request);
+    if (patch instanceof Response) return patch;
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionToken));
+    const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    // Preserve omitted fields inside the update, and authorize at the write itself.
+    // SQLite's subsecond clock avoids authorizing with a pre-body timestamp.
+    const updated = await env.AUTH_DB.prepare(`UPDATE user SET
+      first_name = CASE WHEN ? THEN ? ELSE first_name END,
+      last_name = CASE WHEN ? THEN ? ELSE last_name END
+      WHERE id = ? AND EXISTS (SELECT 1 FROM browser_sessions
+        WHERE token_hash = ? AND user_id = user.id AND csrf_token = ?
+          AND expires_at > unixepoch('subsec') * 1000)
+      RETURNING id, email, first_name AS firstName, last_name AS lastName, role, created_at AS createdAt`)
+      .bind(Number(patch.firstName !== undefined), patch.firstName ?? null,
+        Number(patch.lastName !== undefined), patch.lastName ?? null,
+        session.userId, tokenHash, session.csrfToken).first<Profile>();
+    return updated ? Response.json({ user: updated, csrfToken: session.csrfToken }) : error("unauthorized", 401);
+  }
+  if (url.pathname === "/logout") {
     await revokeSession(env.AUTH_DB, sessionToken);
     return new Response(null, { status: 204, headers: { "Set-Cookie": cookie(settings.origin, "session", "", 0) } });
   }

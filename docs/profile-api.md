@@ -31,5 +31,32 @@ The CSRF token is not an authentication credential. `POST /logout` requires the
 exact application Origin and `X-CSRF-Token`; it revokes that browser session,
 not independently held bearer tokens or the Google login session.
 
-Profile edits and account deletion are a following implementation slice. The
-legacy SDK/examples have not yet been replaced and are not supported integrations.
+## Profile edits
+
+`PATCH /api/profile` uses the browser session and requires the exact Origin plus
+`X-CSRF-Token`. Authorization headers and query parameters are rejected to avoid
+ambiguous credentials or account selectors. The only editable fields are
+`firstName` and `lastName`; omitted fields stay unchanged, while `null` or a blank
+trimmed string clears a field. Nonblank names may contain Unicode and punctuation,
+but no C0/C1 control characters, and are limited to 100 UTF-16 code units.
+
+Send a nonempty JSON object using `Content-Type: application/json` (optional
+`charset=utf-8`). The actual UTF-8 body is capped at 4096 bytes and a five-second
+read deadline. ID, email, role and other fields cannot be set. Success returns the
+updated `user` and the existing `csrfToken`. The update preserves omitted columns
+inside SQL and rechecks the exact live session and CSRF token at the write itself.
+The database clock is used for expiry, not an earlier request timestamp.
+
+Errors use `{ "error": "code" }`: `400 invalid_profile` for invalid JSON/schema,
+`400 invalid_request` for a selector or Authorization header, `401 unauthorized`,
+`403 invalid_csrf`, `413 payload_too_large`, `415 unsupported_media_type`, or
+`408 request_timeout`. Origin-policy rejection may instead be `403 unrecognized_origin`.
+Unsupported profile methods return `405` with `Allow: GET, PATCH`.
+
+Repeating the same field assignment is idempotent, but concurrent updates to the
+same field are last-write-wins. After an uncertain network result, read the profile
+before retrying so an automatic retry does not overwrite a newer edit. Names are
+data, not HTML; browser renderers must use text/escaped output.
+
+Account deletion is a following implementation slice. The legacy SDK/examples
+have not yet been replaced and are not supported integrations.
