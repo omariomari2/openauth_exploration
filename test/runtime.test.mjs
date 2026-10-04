@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { Miniflare } from "miniflare";
+import { authorizationPath, ORIGIN } from "./helpers/worker.mjs";
 
 let runtime;
 let database;
@@ -18,6 +19,7 @@ before(async () => {
     bindings: {
       GOOGLE_CLIENT_ID: "test-only-client",
       GOOGLE_CLIENT_SECRET: "test-only-secret",
+      ISSUER_ORIGIN: ORIGIN,
     },
   });
   database = await runtime.getD1Database("AUTH_DB");
@@ -36,12 +38,12 @@ after(async () => {
 test("the bundled Worker responds in workerd without cloud credentials", async () => {
   const response = await runtime.dispatchFetch("https://auth.example.test/", { redirect: "manual" });
   assert.equal(response.status, 302);
-  assert.equal(new URL(response.headers.get("location")).pathname, "/authorize");
+  assert.equal(new URL(response.headers.get("location"), ORIGIN).pathname, "/login");
 });
 
 test("the bundled OpenAuth issuer offers only Google login", async () => {
   const response = await runtime.dispatchFetch(
-    "https://auth.example.test/authorize?client_id=your-client-id&redirect_uri=https%3A%2F%2Fauth.example.test%2Fcallback&response_type=code",
+    new URL(authorizationPath(), ORIGIN),
     { redirect: "manual" },
   );
   assert.equal(response.status, 302);

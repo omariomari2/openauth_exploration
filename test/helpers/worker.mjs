@@ -8,14 +8,14 @@ export const ORIGIN = "https://auth.example.test";
 export const CLIENT_ID = "openauth-demo";
 export const VERIFIER = "v".repeat(43);
 
-export async function createTestApp() {
+export async function createTestApp({ origin = ORIGIN } = {}) {
   const fetchMock = createFetchMock();
   fetchMock.disableNetConnect();
   const runtime = new Miniflare({
     modules: [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }],
     compatibilityDate: "2025-10-08", compatibilityFlags: ["nodejs_compat"],
     kvNamespaces: ["AUTH_STORAGE"], d1Databases: ["AUTH_DB"], fetchMock,
-    bindings: { GOOGLE_CLIENT_ID: "test-google-client", GOOGLE_CLIENT_SECRET: "test-google-secret", ISSUER_ORIGIN: ORIGIN },
+    bindings: { GOOGLE_CLIENT_ID: "test-google-client", GOOGLE_CLIENT_SECRET: "test-google-secret", ISSUER_ORIGIN: origin },
   });
   try {
     const db = await runtime.getD1Database("AUTH_DB");

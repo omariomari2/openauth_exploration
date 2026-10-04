@@ -8,12 +8,18 @@
 - [x] Toolchain: triage audit, pin compatible dependencies, disable install scripts,
   add a runnable test harness and remove automatic remote migration hooks.
   Verify clean install, build, dry-run and a real-runtime baseline test.
-- [ ] Identity: add provider-subject mapping and fail-closed Google profile parsing.
+- [x] Identity: add provider-subject mapping and fail-closed Google profile parsing.
   Verify malformed/unverified profiles, repeat/concurrent login and email conflict.
+- [ ] Resolve confirmed cold-start issuer encryption-key initialization race.
+  Concurrent initial requests must not invalidate another browser's cookie.
+  Investigate the separately observed intermittent Google-callback fixture failure;
+  do not assume the cold-start finding explains a mid-suite failure.
 - [ ] Profile API: verify signed subject/audience and load only the current user.
   Verify missing/forged/expired/wrong-issuer/wrong-audience/cross-user requests.
 - [ ] Browser session: one-time PKCE/state transaction, exact callback registration,
   secure opaque cookie, expiry and logout. Verify negative/replay paths.
+  HTTP flow and 17 integration tests are implemented; real-browser enforcement
+  and issuer-key reliability remain open.
 - [ ] Demo: login, profile/API, logout and account-data deletion in the browser.
   Fix or clearly replace unsupported SDK/example paths; no token localStorage.
 - [ ] Checkpoint: complete local user flow with real workerd, D1 and KV; inspect

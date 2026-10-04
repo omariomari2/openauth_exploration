@@ -3,6 +3,7 @@
 	"main": "src/index.ts",
 	"name": "openauth-template",
 	"upload_source_maps": true,
+	"vars": { "ISSUER_ORIGIN": "http://localhost:8787" },
 	"alias": {
 		"hono/logger": "./src/observability/openauth-logger.ts"
 	},

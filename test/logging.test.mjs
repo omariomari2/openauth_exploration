@@ -16,7 +16,7 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
       compatibilityFlags: ["nodejs_compat"],
       kvNamespaces: ["AUTH_STORAGE"],
       d1Databases: ["AUTH_DB"],
-      bindings: { GOOGLE_CLIENT_ID: "test-client", GOOGLE_CLIENT_SECRET: "test-secret" },
+      bindings: { GOOGLE_CLIENT_ID: "test-client", GOOGLE_CLIENT_SECRET: "test-secret", ISSUER_ORIGIN: "https://auth.example.test" },
     }, {
       name: "capture-control",
       modules: true,
@@ -41,21 +41,25 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
     await failure.text();
     const header = Buffer.from(JSON.stringify({ alg: "RSA-OAEP-512", enc: "A256GCM", crit: ["sentinel-private-cookie"] })).toString("base64url");
     malformed = await auth.fetch("https://auth.example.test/google/callback?error=access_denied", {
-      redirect: "manual", headers: { Cookie: `provider=${header}....` },
+      redirect: "manual", headers: { Cookie: `__Host-openauth-provider=${header}....` },
     });
     await malformed.text();
     const start = await auth.fetch("https://auth.example.test/google/authorize", { redirect: "manual" });
     assert.equal(start.status, 302);
-    const minted = start.headers.getSetCookie().find((cookie) => cookie.startsWith("provider="))?.split(";")[0];
+    const minted = start.headers.getSetCookie().find((cookie) => cookie.startsWith("__Host-openauth-provider="))?.split(";")[0];
     assert.ok(minted, "issuer must mint a genuine provider cookie");
     for (const cookie of [minted, `${minted}; provider=${header}....`, minted.replace("provider=e", "provider=%65")]) {
       const accepted = await auth.fetch("https://auth.example.test/.well-known/jwks.json", { headers: { Cookie: cookie } });
       assert.equal(accepted.status, 200, "genuine cookie must pass through the guard");
     }
-    for (const cookie of [`provider=${header}....; ${minted}`, `provider=%65${header.slice(1)}....`]) {
+    const duplicate = await auth.fetch("https://auth.example.test/google/authorize", { redirect: "manual", headers: {
+      Cookie: `${minted}; __Host-openauth-provider=${header}....`,
+    } });
+    assert.equal(duplicate.status, 400, "ambiguous protected cookies fail before decryption");
+    for (const cookie of [`__Host-openauth-provider=${header}....`, `__Host-openauth-provider=%65${header.slice(1)}....`]) {
       const rejected = await auth.fetch("https://auth.example.test/google/authorize", { redirect: "manual", headers: { Cookie: cookie } });
       assert.equal(rejected.status, 400);
-      assert.match(rejected.headers.get("set-cookie"), /provider=;[^,]*Max-Age=0/);
+      assert.match(rejected.headers.get("set-cookie"), /__Host-openauth-provider=;[^,]*Max-Age=0/);
     }
     const control = await runtime.getWorker("capture-control");
     await control.fetch("https://control.test/");
@@ -71,7 +75,7 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
   }
   assert.equal(failure.status, 400);
   assert.equal(malformed.status, 400);
-  assert.match(malformed.headers.get("set-cookie"), /provider=;[^,]*Max-Age=0/);
+  assert.match(malformed.headers.get("set-cookie"), /__Host-openauth-provider=;[^,]*Max-Age=0/);
   assert.match(output, /"event":"authentication_failed"/);
 });
 

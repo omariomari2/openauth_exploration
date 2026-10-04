@@ -89,3 +89,32 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   The adapter is committed separately; HTTP wiring and the two-browser transplant
   regression belong to the following browser-flow change. These tests do not
   substitute for verification of prefix enforcement in a real browser.
+
+## Browser HTTP flow
+
+- The bundled Worker now handles login, callback exchange, verified session
+  creation, private profile reads and CSRF-protected logout. Seventeen HTTP
+  integration tests cover two accounts, transplant/replay/concurrent callbacks,
+  PKCE failure, transaction/session expiry, repeat-login rotation, duplicate
+  cookies, current D1 profile data and per-session logout revocation.
+- The regression for a sibling-domain provider-cookie injection first reproduced
+  a callback that contacted Google and could select the attacker's account. With
+  host-prefixed issuer cookies it contacts no Google endpoint and creates no user
+  or session. OpenAuth restarts at the exact same-origin Google authorization
+  route on mismatched provider state; this is not an accepted application callback.
+- Three additional HTTP tests verify security headers, generic internal failures
+  and separate loopback HTTP cookies. Logging tests also verify protected-cookie
+  deletion and the absence of sensitive values in captured runtime logs.
+- `npm test`: 123 passed, zero failed/skipped. `npm run build` and
+  `git diff --check`: passed. Only Google's external endpoints are mocked.
+- One earlier legitimate-login setup returned 400 and did not recur in focused,
+  full-file and full-suite diagnostic runs. Its cause remains unproven; no retries
+  or skipped assertions were added to hide it.
+- A separate source-level probe confirmed OpenAuth's cold-key race: concurrent
+  empty-store initialization can persist two encryption keys, while a later
+  callback decrypts only with the newest one. The older key still decrypts its
+  original cookie. This must be fixed before deployment; it is not assumed to
+  explain the unrelated mid-suite failure.
+- The browser UI, signed-bearer `/userinfo`, profile edits/deletion, CI, real-browser
+  checks and real Google deployment verification remain unfinished. The current
+  authenticated root returns profile JSON, not the final demo interface.
