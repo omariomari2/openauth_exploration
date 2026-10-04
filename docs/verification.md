@@ -221,3 +221,45 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   passed; `npm audit --ignore-scripts`: zero known vulnerabilities. No push,
   deployment or changes to live resources were performed.
   Browser UI, CI and real Google/browser deployment verification remain unfinished.
+
+## Isolated Chromium session harness
+
+The browser suite uses the bundled Worker over loopback HTTP, real isolated D1/KV,
+and temporary Chromium contexts. Only Google's authorization page, token endpoint
+and UserInfo are fixtures; the Worker has no test-login bypass. CDP intercepts the
+managed pages' Google redirects. A deny-only local proxy additionally confines
+Chromium HTTP(S), including new popups, to the exact Worker origin. It never
+forwards traffic. Worker outbound requests are separately confined by the fetch
+mock. The test runner's explicit local API requests are not browser traffic.
+Sign-ins run sequentially so each one-use Google token fixture is consumed by its
+corresponding browser flow.
+
+Install and run locally (no cloud credentials):
+
+```sh
+npm ci --ignore-scripts
+node node_modules/playwright/cli.js install chromium
+npm run test:browser
+```
+
+Chromium is an explicit test-only download, not an npm install hook. These tests
+check the actual PKCE callback, loopback HttpOnly/SameSite cookie metadata, current
+D1 profile data, two-account isolation and per-session logout. They do not prove
+real Google login, production HTTPS cookie-prefix enforcement or a completed UI.
+
+The proxy uses Chromium's documented [exact-origin bypass and subtraction of
+implicit loopback rules](https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md).
+This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
+
+- Review identified missing Google client-credential validation in the fixture.
+  Four tests reproduced successful login with missing/wrong client IDs or secrets
+  during token exchange; they now reject those requests without creating sessions.
+- A popup regression reproduced one escaped TCP connection before the proxy fix.
+  Popup, redirected-popup and HTTPS CONNECT probes now reach no forbidden listener;
+  all probe destinations are controlled local servers, not public services.
+- Independent follow-up review found no remaining actionable issues in this slice.
+  After a clean script-disabled install, build and dry-run bundle passed, all 198
+  existing backend tests passed, and eight browser-foundation tests passed:
+  `node --test --test-concurrency=1 test/browser/network.test.mjs test/browser/harness.test.mjs test/browser/session.test.mjs`.
+  The dependency audit reported zero known vulnerabilities. Unfinished UI work is
+  excluded from this commit; no push, deployment or live-resource changes occurred.

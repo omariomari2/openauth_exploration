@@ -26,6 +26,7 @@
 	},
 	"devDependencies": {
 		"miniflare": "4.20260722.0",
+		"playwright": "1.63.0",
 		"typescript": "5.8.3",
 		"wrangler": "4.114.0"
 	},
@@ -38,6 +39,7 @@
 	"scripts": {
 		"bundle:test": "wrangler deploy --dry-run --outdir dist/worker",
 		"test": "npm run bundle:test && node --test --test-concurrency=1 test/*.test.mjs",
+		"test:browser": "npm run bundle:test && node --test --test-concurrency=1 test/browser/*.test.mjs",
 		"cf-typegen": "wrangler types",
 		"check": "npm run build && wrangler deploy --dry-run",
 		"deploy": "npm run build && wrangler deploy",

@@ -8,24 +8,34 @@ export const ORIGIN = "https://auth.example.test";
 export const CLIENT_ID = "openauth-demo";
 export const VERIFIER = "v".repeat(43);
 
-export async function createTestApp({ origin = ORIGIN,
+export async function createTestApp({ origin = ORIGIN, serve = false,
   modules = [{ type: "ESModule", path: path.resolve("dist/worker/index.js") }],
 } = {}) {
   const fetchMock = createFetchMock();
   fetchMock.disableNetConnect();
-  const runtime = new Miniflare({
+  const options = {
     modules,
+    ...(serve ? { host: "127.0.0.1", port: 0 } : {}),
     compatibilityDate: "2025-10-08", compatibilityFlags: ["nodejs_compat"],
     kvNamespaces: ["AUTH_STORAGE"], d1Databases: ["AUTH_DB"], fetchMock,
     bindings: { GOOGLE_CLIENT_ID: "test-google-client", GOOGLE_CLIENT_SECRET: "test-google-secret", ISSUER_ORIGIN: origin },
-  });
+  };
+  const runtime = new Miniflare(options);
   try {
+    if (serve) {
+      const listening = await runtime.ready;
+      origin = listening.origin;
+      // setOptions replaces all options and invalidates binding handles, so set
+      // the canonical loopback origin before getting D1 or applying migrations.
+      await runtime.setOptions({ ...options, bindings: { ...options.bindings, ISSUER_ORIGIN: origin } });
+      assert.equal((await runtime.ready).origin, origin, "Miniflare listener must keep its assigned port");
+    }
     const db = await runtime.getD1Database("AUTH_DB");
     for (const file of (await readdir("migrations")).filter((name) => name.endsWith(".sql")).sort()) {
       const sql = await readFile(path.join("migrations", file), "utf8");
       await db.exec(sql.replace(/^--.*$/gm, "").replace(/\r?\n/g, " "));
     }
-    return { runtime, db, fetchMock, dispose: () => runtime.dispose() };
+    return { runtime, db, fetchMock, origin, dispose: () => runtime.dispose() };
   } catch (error) {
     await runtime.dispose();
     throw error;
