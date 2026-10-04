@@ -24,9 +24,15 @@
 		"valibot": "1.5.0"
 	},
 	"devDependencies": {
-		"miniflare": "4.20250617.4",
+		"miniflare": "4.20260722.0",
 		"typescript": "5.8.3",
-		"wrangler": "4.21.x"
+		"wrangler": "4.114.0"
+	},
+	"overrides": {
+		"miniflare": {
+			"sharp": "0.35.5",
+			"undici": "7.29.1"
+		}
 	},
 	"scripts": {
 		"bundle:test": "wrangler deploy --dry-run --outdir dist/worker",
