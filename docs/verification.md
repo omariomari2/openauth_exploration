@@ -67,3 +67,15 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   and JOSE's validation semantics, reran all 37 tests and found no actionable issues.
 - This verifier is not yet connected to the protected HTTP API. Passing its unit
   tests does not establish end-to-end access control or a working browser session.
+
+## Issuer request-policy helper
+
+- Six focused tests pass for canonical HTTPS/loopback configuration, exact client
+  and callback registration, S256 requirements, duplicate/unsupported parameters,
+  origin validation and forwarding-header removal.
+- Fresh review found that Hono decodes encoded route names after the policy's
+  literal path check. Regression tests reproduced missing-PKCE authorization via
+  `/%61uthorize`; rejecting encoded path aliases closes that bypass for this demo's
+  fixed ASCII routes. The reviewer checked the fix and found no further helper issues.
+- The helper lands separately from HTTP wiring. The existing demo redirect needs
+  a browser-bound login transaction before this stricter policy can be enabled.
