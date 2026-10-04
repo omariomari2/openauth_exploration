@@ -361,3 +361,19 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   The [retention decision](decisions/007-authentication-retention.md) records limits:
   expiry is immediate, physical deletion needs a successful cleanup, and live cron
   execution remains unverified. Nothing was pushed or deployed.
+
+## Remote-operation guard
+
+- A fresh launch review identified that, despite the README warning, remote npm
+  helpers still selected the inherited Worker/D1/KV configuration. A new command
+  regression failed first, then passed after all remote helpers were directed to
+  the separate `wrangler.deploy.json`. Both secret-setting commands are included;
+  local dev now explicitly disables remote bindings with `--local`.
+- That deployment file does not exist yet. A real Wrangler deploy **dry run**
+  with that path failed with `Could not read file: wrangler.deploy.json`, before
+  any remote work. The two tooling tests pass and follow-up review found no
+  blocking issue. There is no new resource, credential, migration or deployment.
+- This is an accidental-target guard for the supplied npm helpers, not a sandbox
+  for manually entered Wrangler commands. The separate file must be created only
+  after account/resource approval; copying inherited IDs into it is not isolation.
+  A fresh read-only `wrangler whoami` still reports unauthenticated.

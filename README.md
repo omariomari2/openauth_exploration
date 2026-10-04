@@ -87,6 +87,12 @@ These are setup instructions; successful real-provider verification is still pen
 **Do not deploy using the resource IDs currently committed in `wrangler.json`.**
 They are inherited bindings, not approved isolated demo resources.
 
+Remote npm helpers explicitly require `wrangler.deploy.json`, which is deliberately
+absent until an isolated deployment is approved and configured. They fail if that
+file is missing. Do not copy the inherited IDs into it. Local dev explicitly uses
+`--local`; checks and dry runs keep using `wrangler.json` without remote writes.
+This guard covers the provided helpers, not manually entered Wrangler commands.
+
 Deployment requires an approved Cloudflare account, a dedicated Worker/D1/KV set,
 a canonical HTTPS issuer origin, matching Google redirect configuration and secrets.
 Remote migrations and deployment are separate explicit operations, never npm

@@ -39,6 +39,10 @@
 - [x] Add hourly cleanup of expired sessions/login transactions and verify real
   scheduled events, active-data preservation, rollback, recovery and redacted logs
   locally. Live cron execution remains part of deployment verification.
+- [x] Make remote npm helpers require a separate approved deployment configuration;
+  verify an absent file fails during a real CLI dry run. No such config exists yet.
+- [ ] Resolve the pre-public-deployment auth throttling gap with owner approval;
+  repeated anonymous login starts currently write D1 without a rate limit.
 - [ ] Fresh-context security/quality review; resolve findings and rerun affected tests.
 - [ ] Confirm Cloudflare account, isolated bindings and Google OAuth configuration.
 - [ ] Deploy isolated demo and verify real Google login for two separate accounts,
