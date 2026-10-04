@@ -116,7 +116,13 @@ the adapter enforces the exact logical deadline separately.
 
 Anonymous pending login transactions contain no linked account ID. Clearing the
 login cookie prevents this browser from completing its pending transaction;
-the row expires after ten minutes and is removed by the next login's cleanup.
+the row expires after ten minutes. Login-triggered and hourly scheduled cleanup
+remove expired transactions and one-hour browser sessions. Scheduled cleanup uses
+the same atomic D1 batch and leaves active credentials and accounts unchanged.
+Physical deletion happens at the next successful cleanup, not necessarily at the
+expiry instant; failed or delayed runs can extend retention, never authentication.
+See the [retention decision](decisions/007-authentication-retention.md). The hourly
+trigger is configured locally but live execution remains unverified.
 SQL deletion does not purge provider-managed backups. D1 currently retains
 [Time Travel history](https://developers.cloudflare.com/d1/reference/time-travel/)
 for seven days on Free and thirty days on Paid (checked 2026-10-03). The selected

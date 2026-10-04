@@ -29,9 +29,10 @@ browser. Real-browser verification remains required.
 Responses use no-store and no-referrer, reject framing and MIME sniffing, and do
 not inherit wildcard CORS headers. Unexpected failures expose only a generic
 error and an application-generated request ID. No profile or credential is logged.
-Expired D1 transactions and sessions are cleaned on login; scheduled retention
-cleanup is still planned. The [account-data deletion route](../profile-api.md#account-deletion)
-is now implemented and tested locally.
+Expired D1 transactions and sessions are cleaned on login and by the subsequently
+added [hourly handler](007-authentication-retention.md), tested locally but not yet
+deployed. The [account-data deletion route](../profile-api.md#account-deletion)
+is also implemented and tested locally.
 
 This is not yet a production or resume-readiness claim. The pinned issuer's
 concurrent first-key initialization was subsequently fixed with

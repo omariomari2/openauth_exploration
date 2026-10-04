@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { Miniflare } from "miniflare";
 import { loadWorkerModules } from "./helpers/worker.mjs";
 
-test("OAuth query values and provider errors stay out of runtime logs", { timeout: 20000 }, async () => {
+test("OAuth values and provider/cleanup errors stay out of runtime logs", { timeout: 20000 }, async () => {
   let output = "";
   let captured;
   const captureReady = new Promise((resolve) => { captured = resolve; });
@@ -67,6 +67,10 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
       assert.equal(rejected.status, 400);
       assert.match(rejected.headers.get("set-cookie"), /__Host-openauth-provider=;[^,]*Max-Age=0/);
     }
+    await database.prepare("INSERT INTO login_transactions (state_hash, browser_hash, verifier, expires_at) VALUES (?, ?, ?, 0)")
+      .bind("s".repeat(64), "b".repeat(64), "v".repeat(43)).run();
+    await database.exec("CREATE TRIGGER reject_cleanup BEFORE DELETE ON login_transactions BEGIN SELECT RAISE(ABORT, 'sentinel-private-database-error'); END;");
+    assert.equal((await auth.scheduled()).outcome, "exception");
     const control = await runtime.getWorker("capture-control");
     await control.fetch("https://control.test/");
     await captureReady;
@@ -76,13 +80,14 @@ test("OAuth query values and provider errors stay out of runtime logs", { timeou
   // Prove both streams were captured; a silent/broken capture must not pass.
   assert.match(output, /capture-control-stdout/);
   assert.match(output, /capture-control-stderr/);
-  for (const secret of ["sentinel-code", "sentinel-state", "sentinel-token", "sentinel-private-error", "sentinel-private-cookie"]) {
+  for (const secret of ["sentinel-code", "sentinel-state", "sentinel-token", "sentinel-private-error", "sentinel-private-cookie", "sentinel-private-database-error"]) {
     assert.ok(!output.includes(secret), `runtime log leaked ${secret}`);
   }
   assert.equal(failure.status, 400);
   assert.equal(malformed.status, 400);
   assert.match(malformed.headers.get("set-cookie"), /__Host-openauth-provider=;[^,]*Max-Age=0/);
   assert.match(output, /"event":"authentication_failed"/);
+  assert.match(output, /"event":"authentication_cleanup_failed"/);
 });
 
 test("automatic invocation logs cannot capture callback query strings", async () => {

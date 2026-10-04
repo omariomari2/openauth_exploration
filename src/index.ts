@@ -7,6 +7,7 @@ import { rejectMalformedIssuerCookies } from "./observability/issuer-cookies";
 import { fetchGoogleProfile, getOrCreateGoogleUser } from "./identity";
 import { prepareIssuerRequest, readAuthSettings, type DemoEnv } from "./issuer-policy";
 import { handleBrowserRequest } from "./browser-auth";
+import { cleanupExpiredAuth } from "./browser-auth-storage";
 import { handleBearerProfileRequest } from "./bearer-profile";
 import { handleDemoRequest } from "./demo";
 import { translateIssuerCookies, protectIssuerCookies } from "./observability/issuer-cookie-boundary";
@@ -75,6 +76,16 @@ async function handleRequest(request: Request, env: DemoEnv, ctx: ExecutionConte
 }
 
 export default {
+	// https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/
+	async scheduled(_controller: ScheduledController, env: DemoEnv) {
+		try { await cleanupExpiredAuth(env.AUTH_DB); }
+		catch {
+			const requestId = crypto.randomUUID();
+			console.error(JSON.stringify({ event: "authentication_cleanup_failed", requestId }));
+			// Fail the invocation without leaking database errors into runtime logs.
+			throw new Error("Authentication cleanup failed");
+		}
+	},
 	async fetch(request: Request, env: DemoEnv, ctx: ExecutionContext) {
 		let response: Response;
 		try { response = await handleRequest(request, env, ctx); }

@@ -36,8 +36,9 @@
   retention boundaries, breaking integrations and exact verification evidence.
 - [ ] After explicit push approval, verify a GitHub-hosted CI run and configure
   required checks with owner approval. No hosted green-run claim yet.
-- [ ] Add and verify scheduled cleanup of expired sessions/login transactions;
-  login-triggered cleanup alone does not bound idle database retention.
+- [x] Add hourly cleanup of expired sessions/login transactions and verify real
+  scheduled events, active-data preservation, rollback, recovery and redacted logs
+  locally. Live cron execution remains part of deployment verification.
 - [ ] Fresh-context security/quality review; resolve findings and rerun affected tests.
 - [ ] Confirm Cloudflare account, isolated bindings and Google OAuth configuration.
 - [ ] Deploy isolated demo and verify real Google login for two separate accounts,

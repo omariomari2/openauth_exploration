@@ -342,3 +342,22 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   returned 401 without credentials. All five responses used no-store. The owned
   dev process was stopped afterward. This did not use real Google credentials or
   any remote database, and does not verify a successful provider login.
+
+## Scheduled authentication retention
+
+- New regressions first failed because the Worker had no scheduled handler or
+  configured trigger. The hourly handler now uses the existing indexed expiry
+  cleanup without initializing Google authentication. Real workerd scheduled
+  events delete expired transactions/sessions while preserving active credentials,
+  user data and unrelated KV; overlapping repeated invocations are safe.
+- A real D1 trigger aborts the second DELETE to prove the entire batch rolls back.
+  Removing only that test trigger lets the next invocation recover. A separate
+  capture test injects a private database-error sentinel, verifies a failed event
+  and the generic structured cleanup log, and finds no sentinel in either runtime
+  stream. The tests do not install triggers in any live database.
+- Fresh-context review found no actionable issue. Build and dry-run bundle pass;
+  the full backend suite passes 205 tests and the existing browser suite passes
+  20, all with zero failures/skips. No dependencies or migrations changed.
+  The [retention decision](decisions/007-authentication-retention.md) records limits:
+  expiry is immediate, physical deletion needs a successful cleanup, and live cron
+  execution remains unverified. Nothing was pushed or deployed.
