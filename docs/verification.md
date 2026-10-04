@@ -377,3 +377,40 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   for manually entered Wrangler commands. The separate file must be created only
   after account/resource approval; copying inherited IDs into it is not isolation.
   A fresh read-only `wrangler whoami` still reports unauthenticated.
+
+## Live-document visibility and delayed responses
+
+- Six Chromium tests exercise trusted hidden/visible events without navigation.
+  They verify immediate private-DOM clearing, revalidation, rejection of an older
+  profile response after a newer one, and the uncertain-action lock when real
+  successful save/logout/delete responses arrive after hiding. Requests still use
+  the actual Worker and isolated D1/KV; only response delivery is delayed.
+- A test-only observer appended to the in-memory client asset awaits each
+  unchanged handler, including JSON parsing, and records its invocation ID.
+  Assertions wait for that exact completion rather than response headers or a
+  timer. It records no identity, payload or credentials and is not deployed.
+  A temporary sensitivity probe removed only lifecycle invalidation and delayed
+  parsing by 150 ms: four intended assertions failed. All probe changes were
+  removed. Injected request/delivery failures also exited without unhandled
+  rejections; waits and context teardown are bounded.
+- Fresh-context review caught premature completion assertions and unobserved
+  failure promises. Both were corrected, including the two visible-refresh
+  waiters; the bounded follow-up found no remaining actionable findings.
+- The visibility helper isolates a guarded private Playwright 1.63.0 CDP-session
+  dependency. Chromium emits the events; document markers and absence of pagehide
+  prove the original document stays alive. This is not a physical tab-switch or
+  BFCache-restoration claim.
+- Separate diagnostic navigation in Chromium 153.0.8010.12 still reported
+  `persisted=false` after removing Playwright's explicit BFCache-disable flag,
+  with and without the harness's Fetch interception. Reported reasons included
+  no-store document/fetch responses and browser delegate/browsing-instance limits.
+  Chrome documents the [no-store fetch eviction rule](https://developer.chrome.com/docs/web-platform/bfcache-ccns).
+  Production privacy headers were not weakened to force cache eligibility;
+  actual BFCache restoration remains unverified.
+- Final local gate after `npm ci --ignore-scripts`: `npm run build` and
+  `npm run bundle:test` passed; `node --test --test-concurrency=1 test/*.test.mjs`
+  passed 206 tests in 83.27 seconds; the same command over
+  `test/browser/*.test.mjs` passed 26 tests in 39.39 seconds. No failures,
+  cancellations or skips. The dependency audit reported zero advisories and
+  actionlint 1.7.12 passed. Google is still a fixture; no hosted CI, push or
+  deployment occurred.

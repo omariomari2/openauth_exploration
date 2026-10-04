@@ -29,8 +29,12 @@
   implementation and migration guides; verify no retired exports remain.
 - [x] Local checkpoint: complete user flow with real workerd, D1 and KV; inspect
   browser console, cookie metadata, redirects, errors and responsive screenshots.
-- [ ] Verify hidden-tab visibility, BFCache restoration and delayed responses in
-  a still-live document. Current trusted pagehide tests do not prove these cases.
+- [x] Verify trusted Chromium visibility and delayed responses in a still-live
+  document, with exact handler-completion assertions and fresh-context review.
+  This is not a physical tab-switch or BFCache-restoration claim.
+- [ ] Verify BFCache restoration if the deployed browser can enter that state.
+  Local diagnostics report no-store fetch and browser eligibility restrictions;
+  retain privacy headers rather than weakening them to manufacture a cache hit.
 - [x] Prepare credential-free CI with locked install and automated checks; lint and
   review its source. Document local setup, provider configuration, security and
   retention boundaries, breaking integrations and exact verification evidence.
