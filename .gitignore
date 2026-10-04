@@ -212,6 +212,11 @@ DIRECT_DEPLOYMENT_WORKFLOW.md
 # All markdown files except README
 *.md
 !README.md
+!SPEC.md
+!tasks/plan.md
+!tasks/todo.md
+!docs/decisions/*.md
+!docs/verification.md
 
 # ARM architecture specific issues
 # Note: workerd package doesn't support Windows ARM64
