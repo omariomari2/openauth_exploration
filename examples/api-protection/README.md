@@ -1,56 +1,46 @@
-# Protected profile API example
+# Protected profile API
 
-The supported API example runs inside the same Worker as the
-[browser demo](../frontend-integration/README.md). Follow the
-[project setup](../../README.md), run `npm run dev`, open the configured origin,
-and use the screen to sign in, read and edit your private profile, sign out, or
-confirm account deletion. There is no second Worker to deploy.
+The API runs in the same Worker as the [browser interface](../frontend-integration/README.md).
+You do not need a second Worker.
+
+1. Complete the [project setup](../../README.md).
+2. Run `npm run dev` and open the configured origin.
+3. Sign in to read or edit your profile, sign out, or delete your account.
+
+## Routes
 
 | Route | Credential and behavior |
 | --- | --- |
 | `GET /api/profile` | Current opaque browser session; returns `{ user, csrfToken }`. |
 | `PATCH /api/profile` | Current browser session, exact Origin and `X-CSRF-Token`; updates only supplied `firstName`/`lastName` fields. |
-| `POST /logout` | Current browser session, exact Origin and `X-CSRF-Token`; revokes that demo session and returns `204`. |
+| `POST /logout` | Current browser session, exact Origin and `X-CSRF-Token`; revokes that session and returns `204`. |
 | `DELETE /api/account` | Current browser session, exact Origin and `X-CSRF-Token`; deletes that account's data and returns `204`. |
-| `GET /userinfo` | A verified access bearer token for this demo's exact issuer/audience; returns `{ user }`. Cookies cannot authorize it. |
+| `GET /userinfo` | Verified bearer access token for the exact issuer and audience; returns `{ user }`. Cookies cannot authorize it. |
 
-The [profile API contract](../../docs/profile-api.md) specifies request bodies,
-response fields, errors, expiry, deletion and concurrency limits. Browser
-profile/account routes accept no query selectors or Authorization headers. The
-server derives the account from verified credentials and reads current D1 data.
-The UI uses `/api/profile`; it does not obtain a bearer token for `/userinfo`.
+## Credentials
 
-## Migrate from the removed middleware Worker
+Browser profile and account routes reject query selectors and Authorization headers.
+The server selects the account from verified credentials and reads current D1 data.
+The browser uses `/api/profile`. It does not obtain a bearer token for `/userinfo`.
 
-The previous `worker.ts`, `src/middleware/auth.ts`,
-`src/helpers/token-validation.ts`, and their exports from `src/index.ts` were
-removed. This is an intentional breaking source-import change; there is no
-drop-in `requireAuth`, role middleware, token-decoding helper or rate limiter.
-The [retirement record](../README.md) identifies unknown external consumers.
+The [API contract](../../docs/profile-api.md) defines request bodies, response fields, errors, expiry, deletion and concurrency limits.
 
-For the supported private profile use case, replace the old
-`/api/protected/profile` request with the same-origin browser flow above. Replace
-flat snake_case profile reads with `response.user` and its camelCase fields.
-Do not copy the old wildcard CORS policy, forward browser credentials to a second
-service, or use decoded JWT claims as database IDs or authorization decisions.
+## Implementation
 
-The former products, orders, cart, wishlist, recommendations and admin handlers
-returned fabricated example data. Those routes have no replacement in this
-authentication demo. Arbitrary OAuth clients, cross-origin applications and
-role-based application APIs require a separately specified and verified design.
+Use the full [entrypoint](../../src/index.ts) to retain origin, issuer, cookie and response protections.
+The internal modules provide these checks:
 
-Read [browser-auth.ts](../../src/browser-auth.ts) for session and write ownership
-checks, [bearer-profile.ts](../../src/bearer-profile.ts) for `/userinfo`, and
-[token-verification.ts](../../src/token-verification.ts) for signed-claim checks.
-These are internal Worker modules; use the full [entrypoint](../../src/index.ts)
-so request-origin, issuer, cookie and response protections remain in effect.
+- [browser-auth.ts](../../src/browser-auth.ts): sessions and write ownership.
+- [bearer-profile.ts](../../src/bearer-profile.ts): `/userinfo`.
+- [token-verification.ts](../../src/token-verification.ts): signed claims.
 
 ## Verification
 
-`npm test` exercises the actual bundled Worker with isolated D1/KV. Relevant
-coverage includes [bearer profiles](../../test/bearer-profile.test.mjs),
-[profile mutations](../../test/profile-mutations.test.mjs),
+`npm test` runs the bundled Worker with isolated D1 and KV.
+Tests cover [bearer profiles](../../test/bearer-profile.test.mjs),
+[profile updates](../../test/profile-mutations.test.mjs),
 [session revocation](../../test/profile-revocation.test.mjs) and
-[account deletion](../../test/account-deletion.test.mjs). Google's external
-responses are fixtures. See [verification evidence](../../docs/verification.md);
-local tests do not establish a successful live Google deployment.
+[account deletion](../../test/account-deletion.test.mjs).
+
+Tests simulate Google's responses. They do not prove a successful live Google deployment.
+See [test results and known limits](../../docs/verification.md).
