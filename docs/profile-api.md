@@ -58,5 +58,43 @@ same field are last-write-wins. After an uncertain network result, read the prof
 before retrying so an automatic retry does not overwrite a newer edit. Names are
 data, not HTML; browser renderers must use text/escaped output.
 
-Account deletion is a following implementation slice. The legacy SDK/examples
-have not yet been replaced and are not supported integrations.
+## Account deletion
+
+`DELETE /api/account` requires the browser session, exact Origin and current
+`X-CSRF-Token`. Send no body, query parameters or Authorization header. The account
+comes only from that session; bearer tokens cannot authorize deletion. Like PATCH,
+the deletion statement rechecks the exact session, CSRF token and database-clock
+expiry. Success is `204` with no body and clears this browser's four login/session
+cookies. An already-deleted account returns `401`, not another success.
+
+The single D1 statement deletes the user and cascades their Google identity,
+all browser sessions, and any legacy session/address rows. Other accounts and
+the issuer keys stay intact. A database error returns a generic `500` and does
+not report successful deletion or clear the cookies. Other errors are
+`400 invalid_request`, `401 unauthorized`, `403 invalid_csrf` (or the origin
+policy's `403 unrecognized_origin`), and `405` with `Allow: DELETE`.
+
+Subsequent browser/profile reads and authorization-code/refresh exchanges check
+the original D1 user ID and reject deleted accounts. A new Google sign-in may
+create a fresh account with a new ID; it cannot revive old credentials. This is
+account-data deletion, not a Google logout, Google-account deletion, or a ban.
+
+Requests that already read an authorized account before deletion may finish.
+In particular, an in-flight token exchange may issue credentials after deletion,
+but those credentials cannot access the deleted profile or renew again. Residual
+KV grants are not synchronously erased: authorization codes have a 60-second
+logical lifetime and refresh records a one-hour lifetime measured from their last
+write, including an in-flight write. KV's minimum physical TTL is 60 seconds;
+the adapter enforces the exact logical deadline separately.
+
+Anonymous pending login transactions contain no linked account ID. Clearing the
+login cookie prevents this browser from completing its pending transaction;
+the row expires after ten minutes and is removed by the next login's cleanup.
+SQL deletion does not purge provider-managed backups. D1 currently retains
+[Time Travel history](https://developers.cloudflare.com/d1/reference/time-travel/)
+for seven days on Free and thirty days on Paid (checked 2026-10-03). The selected
+plan and restore procedure must be documented for the isolated deployment before
+launch; a pre-deletion restore could reintroduce account data.
+
+The legacy SDK/examples have not yet been replaced and are not supported
+integrations. The browser interface and live deployment remain unfinished.

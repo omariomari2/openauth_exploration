@@ -16,6 +16,9 @@
   a 60-second authorization code). Preserve logical expiry; rerun full flows.
 - [x] Profile API: verify signed subject/audience and load only the current user.
   Verify missing/forged/expired/wrong-issuer/wrong-audience/cross-user requests.
+- [x] Browser API mutations: bounded name-only profile updates and account deletion.
+  Verify exact-session authorization at the database write, cascades, failure
+  behavior, isolation, and rejection of deleted accounts' OAuth grants.
 - [ ] Browser session: one-time PKCE/state transaction, exact callback registration,
   secure opaque cookie, expiry and logout. Verify negative/replay paths.
   HTTP flow and 17 integration tests are implemented; real-browser enforcement

@@ -39,6 +39,11 @@ function error(code: string, status: number): Response {
   return Response.json({ error: code }, { status });
 }
 
+async function hashSessionToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 // The client talks to the same issuer in-process, never through a user-supplied
 // URL or a network fetch back to this Worker. OpenAuth documents the fetch override:
 // https://openauth.js.org/docs/client/#clientinputfetch
@@ -47,7 +52,10 @@ export async function handleBrowserRequest(
   issuerFetch: (request: Request) => Promise<Response>,
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  const methods: Record<string, string> = { "/": "GET", "/login": "GET", "/callback": "GET", "/api/profile": "GET, PATCH", "/logout": "POST" };
+  const methods: Record<string, string> = {
+    "/": "GET", "/login": "GET", "/callback": "GET", "/api/profile": "GET, PATCH",
+    "/api/account": "DELETE", "/logout": "POST",
+  };
   if (!(url.pathname in methods)) return null;
   if (!methods[url.pathname].split(", ").includes(request.method)) {
     return new Response(null, { status: 405, headers: { Allow: methods[url.pathname] } });
@@ -104,7 +112,7 @@ export async function handleBrowserRequest(
   if (!session || !user) {
     return url.pathname === "/" ? new Response(null, { status: 302, headers: { Location: "/login" } }) : error("unauthorized", 401);
   }
-  if (url.pathname === "/api/profile" && (url.search || request.headers.has("Authorization"))) {
+  if (["/api/profile", "/api/account"].includes(url.pathname) && (url.search || request.headers.has("Authorization"))) {
     return error("invalid_request", 400);
   }
   if (request.method !== "GET") {
@@ -115,8 +123,7 @@ export async function handleBrowserRequest(
   if (url.pathname === "/api/profile" && request.method === "PATCH") {
     const patch = await readProfilePatch(request);
     if (patch instanceof Response) return patch;
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionToken));
-    const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const tokenHash = await hashSessionToken(sessionToken);
     // Preserve omitted fields inside the update, and authorize at the write itself.
     // SQLite's subsecond clock avoids authorizing with a pre-body timestamp.
     const updated = await env.AUTH_DB.prepare(`UPDATE user SET
@@ -130,6 +137,23 @@ export async function handleBrowserRequest(
         Number(patch.lastName !== undefined), patch.lastName ?? null,
         session.userId, tokenHash, session.csrfToken).first<Profile>();
     return updated ? Response.json({ user: updated, csrfToken: session.csrfToken }) : error("unauthorized", 401);
+  }
+  if (url.pathname === "/api/account") {
+    if (request.body !== null) return error("invalid_request", 400);
+    const removed = await env.AUTH_DB.prepare(`DELETE FROM user WHERE id = ? AND EXISTS (
+      SELECT 1 FROM browser_sessions WHERE token_hash = ? AND user_id = user.id
+        AND csrf_token = ? AND expires_at > unixepoch('subsec') * 1000
+      ) RETURNING id`)
+      .bind(session.userId, await hashSessionToken(sessionToken), session.csrfToken).first<{ id: string }>();
+    if (!removed) return error("unauthorized", 401);
+    const headers = new Headers();
+    headers.append("Set-Cookie", cookie(settings.origin, "login", "", 0));
+    headers.append("Set-Cookie", cookie(settings.origin, "session", "", 0));
+    // The outer issuer-cookie boundary applies the correct HTTPS/local names.
+    for (const name of ["provider", "authorization"]) {
+      headers.append("Set-Cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+    }
+    return new Response(null, { status: 204, headers });
   }
   if (url.pathname === "/logout") {
     await revokeSession(env.AUTH_DB, sessionToken);

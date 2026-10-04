@@ -70,6 +70,8 @@ describe("issuer storage with real isolated D1 and KV", () => {
 
   beforeEach(async () => {
     await db.exec("DELETE FROM issuer_keys");
+    await db.prepare("DELETE FROM user WHERE id != ?").bind("migration-user").run();
+    await db.prepare("INSERT INTO user (id, email) VALUES (?, ?)").bind("test-user", "grant@example.test").run();
     for (const key of (await namespace.list()).keys) await namespace.delete(key.name);
     storage = createIssuerStorage(db, namespace);
   });
@@ -210,7 +212,7 @@ describe("issuer storage with real isolated D1 and KV", () => {
 
   test("OAuth code storage accepts a 60-second expiry after a millisecond has elapsed", async () => {
     const key = ["oauth:code", "expiry-regression"];
-    const value = { subject: "test-user" };
+    const value = { type: "user", properties: { id: "test-user" } };
     await storage.set(key, value, new Date(Date.now() + 59_999));
     assert.deepEqual(await createIssuerStorage(db, namespace).get(key), value);
   });
@@ -221,7 +223,7 @@ describe("issuer storage with real isolated D1 and KV", () => {
     const code = ["oauth:code", "test-code"];
     const refresh = ["oauth:refresh", "user:subject", "test-refresh"];
     const codeValue = { type: "user", properties: { id: "test-user" }, pkce: { challenge: "test-challenge" } };
-    const refreshValue = { subject: "user:subject", clientID: "openauth-demo" };
+    const refreshValue = { type: "user", properties: { id: "test-user" }, subject: "user:subject", clientID: "openauth-demo" };
     await storage.set(code, codeValue, expiry);
     await storage.set(refresh, refreshValue, expiry);
     const other = createIssuerStorage(db, namespace);
@@ -241,4 +243,56 @@ describe("issuer storage with real isolated D1 and KV", () => {
     assert.deepEqual((await namespace.list()).keys, []);
     assert.equal(await db.prepare("SELECT COUNT(*) AS count FROM issuer_keys").first("count"), 0);
   });
+
+  for (const purpose of ["oauth:code", "oauth:refresh"]) {
+    test(`${purpose} fails closed without exposing details when the user lookup fails`, async () => {
+      const key = [purpose, "failed-user-lookup"];
+      const value = { type: "user", properties: { id: "test-user" } };
+      await storage.set(key, value, new Date(Date.now() + 180_000));
+      assert.deepEqual(await storage.get(key), value);
+      const failingDb = { prepare() { throw new Error("private-database-detail"); } };
+      await assert.rejects(createIssuerStorage(failingDb, namespace).get(key), (error) => {
+        assert.equal(error.message, "Unable to access authentication storage");
+        assert.equal(error.cause, undefined);
+        return true;
+      });
+      assert.deepEqual(await storage.get(key), value, "lookup failure does not alter the stored grant");
+    });
+
+    test(`${purpose} grants stop after deletion and never follow an email to a new user`, async () => {
+      const key = [purpose, "deleted-user-grant"];
+      const value = { type: "user", properties: { id: "test-user", email: "grant@example.test" },
+        subject: "test-user", clientID: "openauth-demo", pkce: { challenge: "keep-original-fields" }, ttl: { access: 3600 } };
+      await storage.set(key, value, new Date(Date.now() + 180_000));
+      assert.deepEqual(await storage.get(key), value);
+      await db.prepare("DELETE FROM user WHERE id = ?").bind("test-user").run();
+      assert.equal(await storage.get(key), undefined);
+      assert.equal(await createIssuerStorage(db, namespace).get(key), undefined);
+      await db.prepare("INSERT INTO user (id, email) VALUES (?, ?)").bind("replacement-user", "grant@example.test").run();
+      assert.equal(await storage.get(key), undefined);
+      // Cleanup can still see and remove residual records; get never deletes them.
+      assert.deepEqual(await Array.fromAsync(storage.scan([purpose])), [[key, value]]);
+      assert.equal((await namespace.list()).keys.length, 1);
+      // An already in-flight request may write after deletion, but cannot renew again.
+      await storage.set(key, { ...value, timeUsed: Date.now() }, new Date(Date.now() + 180_000));
+      assert.equal(await storage.get(key), undefined);
+      const replacement = { ...value, properties: { id: "replacement-user" } };
+      await storage.set(key, replacement);
+      assert.deepEqual(await storage.get(key), replacement);
+      await storage.remove(key);
+      assert.deepEqual(await Array.fromAsync(storage.scan([purpose])), []);
+    });
+
+    test(`${purpose} rejects malformed subject properties without trusting legacy subject or email`, async () => {
+      const key = [purpose, "malformed-grant"];
+      for (const value of [null, [], {}, { subject: "test-user" }, { type: "admin", properties: { id: "test-user" } },
+        { type: "user" }, { type: "user", properties: null }, { type: "user", properties: { id: "" } },
+        { type: "user", properties: { id: 1 } }, { type: "user", properties: { id: "x".repeat(256) } },
+        { type: "user", properties: { email: "grant@example.test" } },
+        { type: "user", properties: { id: "missing", email: "grant@example.test" }, subject: "test-user" }]) {
+        await storage.set(key, value);
+        assert.equal(await storage.get(key), undefined);
+      }
+    });
+  }
 });

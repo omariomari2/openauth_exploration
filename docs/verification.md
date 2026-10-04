@@ -190,3 +190,34 @@ Google login works. Those checks remain open in `tasks/todo.md`.
 - Forty-six focused browser, bearer and profile tests pass, as does TypeScript.
   The test wrapper is not part of the deployable bundle. Browser rendering and
   account deletion are separate unfinished slices.
+
+## Account deletion and residual grants
+
+- The initial real refresh/code regressions reproduced successful token issuance
+  after the D1 account was deleted. Each grant read now validates its original
+  user ID against D1; malformed/missing subjects and database failures fail closed.
+  Adapter tests preserve the full OpenAuth payload, expiry and cleanup behavior.
+- Eight bundled-Worker deletion tests cover session/CSRF requirements, request
+  boundaries, all account-row cascades, four cookie clears, isolation and old
+  credentials after a fresh signup using the same Google identity.
+- Four additional tests intervene after a genuine authenticated profile read:
+  revoke/expire/rotate the exact session, or fail the DELETE before execution.
+  Deletion is denied without clearing cookies; failure preserves the account and
+  related rows. Disabling only the SQL guard in memory makes all three session
+  race tests fail (`DELETE_GUARD_MUTATION=1`).
+- Two real-issuer tests delete the user after the grant lookup but before code
+  exchange/refresh completes. Issuance may finish, but its access token is denied,
+  its next refresh is rejected, and the real KV record retains a bounded one-hour
+  lifetime from its final write. Disabling the grant guard in memory makes both
+  renewal assertions fail (`GRANT_GUARD_MUTATION=1`). Neither wrapper is shipped.
+- Test-fixture corrections were verified separately: Miniflare drops empty
+  headers before the Worker receives them, and D1's affected-row count includes
+  cascades. Tests now send real nonempty competing credentials and count the
+  deleted user via `RETURNING id`; no production checks were weakened.
+- Independent implementation and test reviews found no actionable defects.
+  The retention documentation distinguishes live account deletion from residual
+  grants, pending anonymous transactions, in-flight requests and D1 backup history.
+- `npm test`: 198 passed, zero failed/skipped; `npm run check`: build and dry-run
+  passed; `npm audit --ignore-scripts`: zero known vulnerabilities. No push,
+  deployment or changes to live resources were performed.
+  Browser UI, CI and real Google/browser deployment verification remain unfinished.

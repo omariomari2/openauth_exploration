@@ -5,6 +5,10 @@ import * as v from "valibot";
 const algorithms = { "encryption:key": "RSA-OAEP-512", "signing:key": "ES256" } as const;
 type Purpose = keyof typeof algorithms;
 const idSchema = v.pipe(v.string(), v.uuid());
+const grantSubjectSchema = v.object({
+  type: v.literal("user"),
+  properties: v.object({ id: v.pipe(v.string(), v.minLength(1), v.maxLength(255)) }),
+});
 const keySchema = v.strictObject({
   id: idSchema,
   publicKey: v.pipe(v.string(), v.maxLength(8192),
@@ -51,7 +55,18 @@ export function createIssuerStorage(db: D1Database, namespace: KVNamespace): Sto
   return {
     async get(key) {
       const purpose = route(key);
-      if (purpose === "kv") return kv.get(key);
+      if (purpose === "kv") {
+        try {
+          const value = await kv.get(key);
+          const subject = v.safeParse(grantSubjectSchema, value);
+          if (!subject.success) return undefined;
+          // Recheck the primary on every grant read; a re-signup gets a new ID.
+          // Preserve the full OpenAuth payload (PKCE, TTL, etc.), not the projection.
+          const user = await db.prepare("SELECT id FROM user WHERE id = ?")
+            .bind(subject.output.properties.id).first();
+          return user ? value : undefined;
+        } catch { throw new Error("Unable to access authentication storage"); }
+      }
       if (purpose === "legacy") return undefined;
       const value = await read(purpose);
       return value?.id === key[1] ? value : undefined;
