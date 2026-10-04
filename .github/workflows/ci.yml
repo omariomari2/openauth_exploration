@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      WRANGLER_SEND_METRICS: "false"
+      NPM_CONFIG_IGNORE_SCRIPTS: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+      - name: Use the pinned package manager
+        run: npm install --global --ignore-scripts npm@11.17.0
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Type-check Worker and browser code
+        run: npm run build
+      - name: Run unit and bundled-Worker integration tests
+        run: npm test
+      - name: Install the locked Chromium browser and system dependencies
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Run isolated browser tests against the same bundle
+        run: node --test --test-concurrency=1 test/browser/*.test.mjs
+      - name: Audit dependency advisories
+        run: npm audit --ignore-scripts --audit-level=high
