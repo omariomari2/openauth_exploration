@@ -1,54 +1,65 @@
-# Supported integration example
+# Integration guide
 
-This project supports one Google-first, same-origin private-profile demo. Its
-working browser and API implementation lives in `src/` and is served by the
-configured Worker. These guides explain how to run and adapt that implementation:
+Start with [project setup](../README.md).
 
-- [Browser integration](frontend-integration/README.md): sign-in, session-backed
-  profile reads and edits, sign-out, and account deletion through the existing UI.
-- [Protected API](api-protection/README.md): the current credential boundaries and
-  request/response contracts, with links to implementation and tests.
-- [Project setup](../README.md) and [verification evidence](../docs/verification.md).
+This project supports one Google-first service for private profiles.
+The browser and API share one origin. The configured Worker serves the implementation in `src/`.
 
-## Legacy retirement and migration
+- [Browser integration](frontend-integration/README.md) covers sign-in, session-based profile reads and edits, sign-out, and account deletion through the existing UI.
+- [Protected API](api-protection/README.md) covers credential rules and request/response contracts. It links to the implementation and tests.
 
-The following obsolete implementations were removed on 2026-10-03, together
-with their value and type re-exports from `src/index.ts`:
+These guides do not provide replacement SDK exports, framework hooks, arbitrary client registration, or cross-origin authentication.
+They do not provide role middleware, rate limiting, or ecommerce features.
+
+## Migrate an older integration
+
+The npm package is `private`. Use in other repositories or copied applications is unknown.
+The removal does not prove that external users have migrated.
+
+1. Check your imports and application behavior before upgrading.
+2. Adapt your profile workflow with the guides above.
+3. Stop importing the obsolete build files listed below.
+4. Remove those three files from existing checkouts.
+
+Incremental TypeScript builds can leave these files:
+
+- `dist/client-sdk.js`
+- `dist/helpers/token-validation.js`
+- `dist/middleware/auth.js`
+
+These files are outside the current Worker bundle. They are not a supported package API.
+The retirement did not change existing database migrations or data.
+
+## Removed source files
+
+On 2026-10-03, the repository removed these files and their value and type re-exports from `src/index.ts`.
+This intentionally breaks source imports.
+
+Worker modules:
 
 - `src/client-sdk.ts`
 - `src/helpers/token-validation.ts`
 - `src/middleware/auth.ts`
+
+Standalone examples:
+
 - `examples/frontend-integration/vanilla-js.html`
 - `examples/frontend-integration/react-example.tsx`
 - `examples/api-protection/worker.ts`
 
-This is an intentional breaking source-import change. The old SDK stored bearer
-credentials in localStorage and omitted the required PKCE flow; its profile
-contract differed from the implemented API. The helpers included unsigned token
-decoding and unsafe role/state utilities. The API example advertised fabricated
-ecommerce data. Keeping these implementations would misrepresent the supported
-authentication and ownership protections.
+The old SDK stored bearer credentials in localStorage. It omitted the required PKCE flow.
+Its profile contract differed from the API. The helpers decoded tokens without checking signatures.
+They also included unsafe role/state utilities.
+The API example advertised fabricated ecommerce data. These implementations misrepresented the supported authentication and ownership protections.
 
-The in-repo consumers were the entrypoint re-exports, frontend SDK snippets and
-React import, the vanilla page's independent SDK copy, and the middleware API
-example. Those consumers are now retired. The npm package is marked `private`,
-but usage in other repositories or copied applications is unknown; this removal
-does not establish that all external consumers migrated. Owners of such copies
-must audit their imports and behavior before upgrading. Git history preserves
-the removed source for investigation, not as a supported fallback.
+The repository retired its entrypoint re-exports, frontend SDK snippets, and React import.
+It also retired the vanilla page's independent SDK copy and the middleware API example.
+Git history retains the removed source for investigation. It is not a supported fallback.
 
-Previously emitted `dist/client-sdk.js`, `dist/helpers/token-validation.js` and
-`dist/middleware/auth.js` can survive an incremental TypeScript build. Remove
-those obsolete build artifacts from existing checkouts and stop importing them;
-they are not part of the current Worker bundle or a supported package API.
+## Verification limits
 
-The guides above migrate the approved profile use case to the existing demo.
-They do not provide replacement SDK exports, framework hooks, arbitrary client
-registration, cross-origin authentication, role middleware, rate limiting, or
-ecommerce features. Existing database migrations and data are unchanged by this
-retirement.
+Local integration and Chromium tests exercise the implementation with real local D1/KV.
+They use fixtures for Google's external responses.
+Real Google login, production HTTPS behavior, and an isolated live deployment remain unverified.
 
-Local integration and Chromium tests exercise the canonical implementation with
-real local D1/KV and fixtures for Google's external responses. Real Google login,
-production HTTPS behavior and an isolated live deployment remain unverified; see
-the evidence document for the exact completed checks and outstanding gaps.
+Read the [verification evidence](../docs/verification.md) for completed checks and remaining gaps.
