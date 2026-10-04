@@ -123,5 +123,8 @@ for seven days on Free and thirty days on Paid (checked 2026-10-03). The selecte
 plan and restore procedure must be documented for the isolated deployment before
 launch; a pre-deletion restore could reintroduce account data.
 
-The legacy SDK/examples have not yet been replaced and are not supported
-integrations. Real Google login and the isolated live deployment remain unverified.
+The legacy SDK, token helpers, middleware and standalone examples were removed;
+the [integration guides](../examples/README.md) describe the intentional breaking
+change and point to the tested same-origin demo. There is no general-purpose SDK
+or arbitrary external client registration. Real Google login and the isolated
+live deployment remain unverified.

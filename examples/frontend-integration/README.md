@@ -1,240 +1,58 @@
-# Frontend Integration Examples
+# Same-origin browser integration
 
-This directory contains examples of how to integrate the OpenAuth server with various frontend frameworks.
+The supported browser example is the private-profile screen served by this
+Worker at `/`. Follow the [project setup](../../README.md), run `npm run dev`,
+and open the configured `ISSUER_ORIGIN`. Google credentials and its registered
+callback are required for a real sign-in. Opening a local HTML file or serving
+the screen from another origin is unsupported.
 
-## Files
+The implementation is [page.html](../../src/demo/page.html),
+[client.mjs](../../src/demo/client.mjs), [view.mjs](../../src/demo/view.mjs), and
+[styles.css](../../src/demo/styles.css). The Worker bundles and serves these
+files. Edit this implementation when adapting the demo; it is the code exercised
+by the browser tests, with no separate example copy to synchronize.
 
-- `vanilla-js.html` - Complete OAuth flow example using vanilla JavaScript
-- `react-example.tsx` - React integration example with hooks
+## Migrate from the removed SDK and frontend files
 
-## Quick Start
+`vanilla-js.html`, `react-example.tsx`, `src/client-sdk.ts`, and the SDK exports
+from `src/index.ts` were removed. This is an intentional breaking source-import
+change. There is no replacement `AuthClient` class or `useAuth` hook. See the
+[retirement record](../README.md) for scope and unknown external consumers.
 
-### 1. Configure the AuthClient
+| Former operation | Supported demo flow |
+| --- | --- |
+| `login()` and client/callback configuration | Navigate to `/login`; the server owns state, PKCE and the exact callback. |
+| `handleCallback()` and token exchange | The server handles `/callback` and redirects to `/` with an opaque HttpOnly session cookie. |
+| `isAuthenticated()`, `getStoredUser()`, `getCurrentUser()` | Read `GET /api/profile`; use its `user` and keep its `csrfToken` only in memory. A cached user is not proof of a live session. |
+| `authenticatedFetch()` | Use the fixed relative demo routes with `credentials: "same-origin"`, `cache: "no-store"` and `redirect: "error"`, as in `client.mjs`. |
+| `logout()` | Send `POST /logout` with the current `X-CSRF-Token`; success is `204`. This revokes the demo session. |
+| Browser token refresh | Sign in again when the session expires; browser code does not receive access or refresh tokens. |
 
-```javascript
-import { AuthClient } from '../../../src/client-sdk.js';
+The profile envelope is `{ user, csrfToken }`. Names are `user.firstName` and
+`user.lastName`, each a string or `null`; the old flat snake_case object and
+`avatar_url` are not the contract. The complete field list, errors and mutation
+rules are in the [profile API](../../docs/profile-api.md).
 
-const authClient = new AuthClient({
-  authServerUrl: 'https://your-worker.workers.dev',
-  clientId: 'your-client-id',
-  redirectUri: window.location.origin + '/auth/callback',
-  scope: 'openid profile email'
-});
-```
+Profile saves send only changed names to `PATCH /api/profile`, using JSON and
+the current `X-CSRF-Token`. Account deletion uses `DELETE /api/account` after an
+explicit confirmation bound to the displayed account/session. The browser supplies
+the Origin header; the server requires its exact configured origin. These routes
+reject Authorization headers and account selectors.
 
-### 2. Handle Authentication Flow
+Preserve the canonical client's account/session checks, one pending mutation,
+stale-response suppression and private-data clearing on sign-out or page hiding.
+An unknown mutation result locks further editing until sign-in; do not retry the
+write automatically. A role displayed in the UI is not an authorization check.
 
-```javascript
-// Check if user is authenticated
-if (authClient.isAuthenticated()) {
-  const user = authClient.getCurrentUser();
-  console.log('Authenticated user:', user);
-} else {
-  // Redirect to login
-  authClient.login();
-}
-```
+Owners of copied legacy clients should remove their SDK imports and token-storage
+code, and remove the old `openauth_tokens`, `openauth_user`,
+`openauth_token_expires`, and `openauth_state` localStorage keys at the origin that
+created them, without reading or logging their contents. Clearing those keys does
+not revoke previously issued bearer credentials or sign out of Google.
 
-### 3. Handle OAuth Callback
+## Verification
 
-```javascript
-// In your callback page
-const success = await authClient.handleCallback();
-if (success) {
-  // Redirect to dashboard
-  window.location.href = '/dashboard';
-} else {
-  // Show error message
-  console.error('Authentication failed');
-}
-```
-
-## Best Practices
-
-### Token Management
-
-1. **Never store sensitive tokens in localStorage for production**
-2. **Use httpOnly cookies for production apps**
-3. **Implement proper token refresh logic**
-4. **Handle token expiration gracefully**
-
-### Security
-
-1. **Always validate state parameter to prevent CSRF**
-2. **Use HTTPS in production**
-3. **Implement proper CORS policies**
-4. **Add rate limiting on client side**
-
-### Error Handling
-
-1. **Handle network errors gracefully**
-2. **Show user-friendly error messages**
-3. **Implement retry logic for failed requests**
-4. **Log errors for debugging**
-
-## Framework-Specific Examples
-
-### React
-
-Use the provided `useAuth` hook for state management:
-
-```jsx
-import { useAuth } from '../../../src/client-sdk.js';
-
-function App() {
-  const { user, isLoading, isAuthenticated, login, logout } = useAuth({
-    authServerUrl: 'https://your-worker.workers.dev',
-    clientId: 'your-client-id',
-    redirectUri: window.location.origin + '/auth/callback'
-  });
-
-  if (isLoading) return <div>Loading...</div>;
-
-  return (
-    <div>
-      {isAuthenticated ? (
-        <div>
-          <p>Welcome, {user?.first_name}!</p>
-          <button onClick={logout}>Logout</button>
-        </div>
-      ) : (
-        <button onClick={login}>Login</button>
-      )}
-    </div>
-  );
-}
-```
-
-### Vue.js
-
-```javascript
-import { AuthClient } from '../../../src/client-sdk.js';
-
-export default {
-  data() {
-    return {
-      authClient: new AuthClient({
-        authServerUrl: 'https://your-worker.workers.dev',
-        clientId: 'your-client-id',
-        redirectUri: window.location.origin + '/auth/callback'
-      }),
-      user: null,
-      isLoading: false
-    };
-  },
-  async mounted() {
-    if (this.authClient.isAuthenticated()) {
-      this.user = await this.authClient.getCurrentUser();
-    }
-  },
-  methods: {
-    login() {
-      this.authClient.login();
-    },
-    async logout() {
-      this.authClient.logout();
-      this.user = null;
-    }
-  }
-};
-```
-
-### Angular
-
-```typescript
-import { Injectable } from '@angular/core';
-import { AuthClient } from '../../../src/client-sdk.js';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class AuthService {
-  private authClient: AuthClient;
-
-  constructor() {
-    this.authClient = new AuthClient({
-      authServerUrl: 'https://your-worker.workers.dev',
-      clientId: 'your-client-id',
-      redirectUri: window.location.origin + '/auth/callback'
-    });
-  }
-
-  get isAuthenticated(): boolean {
-    return this.authClient.isAuthenticated();
-  }
-
-  async getCurrentUser() {
-    return await this.authClient.getCurrentUser();
-  }
-
-  login() {
-    this.authClient.login();
-  }
-
-  logout() {
-    this.authClient.logout();
-  }
-}
-```
-
-## Testing
-
-### Unit Tests
-
-```javascript
-import { AuthClient } from '../../../src/client-sdk.js';
-
-describe('AuthClient', () => {
-  let authClient;
-
-  beforeEach(() => {
-    authClient = new AuthClient({
-      authServerUrl: 'https://test.example.com',
-      clientId: 'test-client',
-      redirectUri: 'https://test.example.com/callback'
-    });
-  });
-
-  test('should generate valid state parameter', () => {
-    // Test state generation
-  });
-
-  test('should handle token exchange', async () => {
-    // Mock fetch and test token exchange
-  });
-});
-```
-
-### Integration Tests
-
-```javascript
-// Test complete OAuth flow
-test('complete OAuth flow', async () => {
-  // 1. Initiate login
-  // 2. Mock OAuth callback
-  // 3. Verify token exchange
-  // 4. Check user data
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **CORS errors**: Ensure your auth server has proper CORS headers
-2. **Invalid redirect URI**: Check that redirect URI matches exactly
-3. **Token expiration**: Implement proper refresh logic
-4. **State mismatch**: Ensure state parameter is properly validated
-
-### Debug Mode
-
-Enable debug logging:
-
-```javascript
-const authClient = new AuthClient({
-  authServerUrl: 'https://your-worker.workers.dev',
-  clientId: 'your-client-id',
-  redirectUri: window.location.origin + '/auth/callback',
-  debug: true // Enable debug logging
-});
-```
+`npm test` exercises the bundled Worker and `npm run test:browser` exercises this
+screen in Chromium, using isolated D1/KV and fixtures for Google's endpoints.
+See [verification evidence](../../docs/verification.md) for results and remaining
+gaps. Real Google accounts and the isolated live deployment remain unverified.

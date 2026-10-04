@@ -1,5 +1,11 @@
 # OpenAuth Template Analysis & Ecommerce Integration Guide
 
+> **Historical notes — unsupported.** This document predates the Google-first
+> private-profile demo and includes incompatible or unsafe authentication and
+> deployment examples. Do not follow its setup commands or copy its snippets.
+> Use the current [README](README.md), [integration guides](examples/README.md)
+> and [API contract](docs/profile-api.md). It is retained only as historical context.
+
 ## Project Overview
 
 This OpenAuth template provides a complete authentication server built on Cloudflare Workers using the [OpenAuth.js](https://openauth.js.org/) library. It demonstrates how to implement OAuth 2.0 flows, user management, and session handling in a serverless environment.
