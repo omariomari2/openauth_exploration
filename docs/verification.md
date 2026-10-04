@@ -263,3 +263,44 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   `node --test --test-concurrency=1 test/browser/network.test.mjs test/browser/harness.test.mjs test/browser/session.test.mjs`.
   The dependency audit reported zero known vulnerabilities. Unfinished UI work is
   excluded from this commit; no push, deployment or live-resource changes occurred.
+
+## Same-origin profile screen
+
+- The initial HTTP screen tests failed on the old root redirect, missing HEAD
+  handling and absent asset/CSP support. The real-browser save test failed before
+  the client handler existed. The screen now supports Google sign-in, profile
+  editing, sign-out and account-bound deletion confirmation without token storage
+  or external assets. Worker TypeScript and browser JavaScript type checks pass.
+- Three HTTP tests verify the identity-independent shell, same-origin assets,
+  security headers, methods and origin rejection. The wrong-origin probe uses
+  Node's raw HTTP client with Miniflare's own local routing header: Undici Fetch
+  retries 421 by destroying the connection, which caused Windows workerd socket
+  diagnostics despite correct responses. The raw probe checks the same 421/error
+  body without retrying. No production behavior or log filtering changed.
+- Browser tests verify save/reload/logout, cancel/confirm deletion, cross-account
+  isolation, literal HTML-looking names, stale confirmation and expired sessions.
+  A test-only database wrapper proves that a write can succeed before its response
+  fails; the screen clears private data, forbids automatic retries and requires
+  reauthentication. The wrapper is not deployed.
+- Background revalidation retains a dirty draft and its original baseline only
+  for the same account and CSRF token. Tests change D1 independently and sign in
+  through a second tab, proving untouched fields survive saves and account/session
+  changes discard old drafts and deletion confirmations.
+- Trusted pagehide events clear private DOM and disable controls before real
+  navigation. A held real successful PATCH response verifies the uncertain-action
+  lock at pagehide. History return loads updated D1 data. Both observed events had
+  `persisted=false`: these tests do not prove BFCache restoration, hidden-tab
+  visibility behavior or late-response suppression in a still-live document.
+  Those remain explicit verification gaps, not passing assertions.
+- Screenshots were inspected at 320, 768, 1024 and 1440 pixels with no horizontal
+  overflow. Browser checks cover labels, deletion keyboard/focus behavior and
+  selected text contrast pairs at 4.5:1. No JavaScript/CSP errors were observed;
+  the expected anonymous profile 401 is narrowly excluded from console failures.
+  This is not a complete accessibility certification or performance assessment.
+- Fresh-context source and test reviews found no remaining actionable defects
+  in this slice after adding draft and pagehide coverage. Local verification:
+  `npm run build`, `npm test` (201 passed), and
+  `node --test --test-concurrency=1 test/browser/*.test.mjs` (20 passed), with no
+  failed or skipped tests. Google remains a boundary fixture; production HTTPS,
+  real Google accounts and isolated deployment remain unverified. CI and supported
+  external integration examples are still pending. No push or live changes.

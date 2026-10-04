@@ -19,14 +19,17 @@
 - [x] Browser API mutations: bounded name-only profile updates and account deletion.
   Verify exact-session authorization at the database write, cascades, failure
   behavior, isolation, and rejection of deleted accounts' OAuth grants.
-- [ ] Browser session: one-time PKCE/state transaction, exact callback registration,
-  secure opaque cookie, expiry and logout. Verify negative/replay paths.
-  HTTP flow and 17 integration tests are implemented; real-browser enforcement
-  remains open; issuer-key reliability has local regression coverage.
-- [ ] Demo: login, profile/API, logout and account-data deletion in the browser.
-  Fix or clearly replace unsupported SDK/example paths; no token localStorage.
-- [ ] Checkpoint: complete local user flow with real workerd, D1 and KV; inspect
-  browser console, cookies, redirect behavior and errors.
+- [x] Local browser session: one-time PKCE/state transaction, exact callback,
+  opaque cookie, expiry and logout. HTTP negative/replay tests and real Chromium
+  flows pass against isolated workerd/D1/KV; Google endpoints are fixtures.
+  Production HTTPS cookie enforcement is part of the live verification below.
+- [x] Demo screen: login, profile/API, logout and account-data deletion; no token
+  localStorage. Verify account/session changes, drafts and uncertain writes.
+- [ ] Replace unsupported legacy SDK/example paths with a verified integration.
+- [x] Local checkpoint: complete user flow with real workerd, D1 and KV; inspect
+  browser console, cookie metadata, redirects, errors and responsive screenshots.
+- [ ] Verify hidden-tab visibility, BFCache restoration and delayed responses in
+  a still-live document. Current trusted pagehide tests do not prove these cases.
 - [ ] CI/docs: frozen install and automated checks, reproducible setup, provider
   configuration, security boundaries, retention/deletion and exact evidence.
 - [ ] Fresh-context security/quality review; resolve findings and rerun affected tests.
