@@ -22,3 +22,13 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   before its removal, then passed. Remote migrations now require `migrate:remote`.
 - Removed renamed-Worker dev/prod shortcuts that shared the same database/KV.
   Existing bindings are unchanged and must not be used for the isolated demo.
+
+## Google identity helper
+
+- Eighteen focused tests pass against validated UserInfo fixtures and real local
+  D1, including simultaneous sign-ins, case-variant email conflicts, batch rollback,
+  legacy-row preservation and deletion cascade. Invalid/missing claims and stalled
+  or oversized provider responses fail closed. TypeScript passes.
+- The identity schema and mapping helpers received an independent security review
+  with no actionable findings. They are not yet evidence of a working login flow:
+  issuer integration and deployed Google verification remain pending.
