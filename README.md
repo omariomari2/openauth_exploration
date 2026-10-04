@@ -1,101 +1,112 @@
-# OpenAuth Server
+# OpenAuth private-profile demo
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/openauth-template)
+A student authentication project built from the Cloudflare OpenAuth template.
+Google sign-in creates a private D1-backed profile served by the same Cloudflare
+Worker as the browser interface. OpenAuth handles the OAuth exchange; the browser
+receives an opaque HttpOnly session cookie, not access or refresh tokens.
 
-![OpenAuth Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/b2ff10c6-8f7c-419f-8757-e2ccf1c84500/public)
+This is a working **local demo**, not a production-readiness claim. Real Google
+login, production HTTPS cookies and a dedicated deployment still need verification.
+See [verification evidence](docs/verification.md) and [remaining work](tasks/todo.md).
+No password login, ecommerce backend, React SDK or arbitrary external OAuth clients
+are supported.
 
-<!-- dash-content-start -->
+## What it demonstrates
 
-[OpenAuth](https://openauth.js.org/) is a universal provider for managing user authentication. By deploying OpenAuth on Cloudflare Workers, you can add scalable authentication to your application. This demo showcases login, user registration, and password reset, with storage and state powered by [D1](https://developers.cloudflare.com/d1/) and [KV](https://developers.cloudflare.com/kv/). [Observability](https://developers.cloudflare.com/workers/observability/logs/workers-logs/#enable-workers-logs) is on by default.
+- Validated Google identities mapped by provider subject, without email auto-linking.
+- Browser-bound, one-use S256 PKCE login; revocable one-hour D1 sessions and CSRF checks.
+- Owner-scoped profile reads/updates, account deletion and a separately verified
+  bearer profile endpoint. Account deletion cannot affect another user's records.
+- A same-origin screen that clears private data on session changes, confirms
+  deletion, and requires reauthentication after an uncertain write.
+- Tests against real local workerd, D1, KV and Chromium. Only Google is simulated.
 
-> [!IMPORTANT]
-> When using C3 to create this project, select "no" when it asks if you want to deploy. You need to follow this project's [setup steps](https://github.com/cloudflare/templates/tree/main/openauth-template#setup-steps) before deploying.
+The [API contract](docs/profile-api.md) describes exact responses, failure behavior,
+retention and deletion limits. The [integration guide](examples/README.md) points to
+the actual tested implementation and explains the intentional legacy API removal.
 
-<!-- dash-content-end -->
+## Run automated checks without cloud credentials
 
-## Getting Started
+Use Node **24.19.0** and npm **11.17.0**, matching the checked toolchain and CI.
+Dependency lifecycle scripts are disabled in `.npmrc`.
 
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
-
-```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/openauth-template
+```sh
+npm ci --ignore-scripts
+npm run build
+npm test
+node node_modules/playwright/cli.js install chromium
+npm run test:browser
+npm run check
+npm audit --ignore-scripts
 ```
 
-A live public deployment of this template is available at [https://openauth-template.templates.workers.dev](https://openauth-template.templates.workers.dev)
+On Linux, Playwright may also need system libraries; its
+[CI instructions](https://playwright.dev/docs/ci-intro#setting-up-github-actions)
+use `install --with-deps chromium`. The explicit browser download is test-only.
+Tests create isolated temporary data and do not use configured remote resources.
+Build output and screenshots in `test-results/` are ignored by Git.
 
-## Setup Steps
+[CI](.github/workflows/ci.yml) is prepared for pushes, pull requests and manual runs.
+It pins Actions, Node and npm, installs without package scripts, then runs type
+checks, backend/browser tests and an advisory audit. It has read-only repository
+permissions, no cloud secrets and no deployment step. A GitHub-hosted run and
+required-check branch protection are **not yet verified or configured**.
 
-### Quick Start
+## Run the local Google-login demo
 
-1. Install dependencies:
-   ```bash
-   npm install
+Real login requires your own Google OAuth configuration. Never paste credentials
+into a commit, issue, screenshot or browser console.
+
+1. Create a Google OAuth **Web application** client using Google's
+   [credential setup](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
+   Configure the consent screen and, if it is in testing mode, the intended test
+   accounts. Register this exact authorized redirect URI:
+   `http://localhost:8787/google/callback`.
+2. Copy `.dev.vars.example` to `.dev.vars` and fill in that client's ID and secret.
+   Wrangler reads this ignored file for
+   [local secrets](https://developers.cloudflare.com/workers/configuration/secrets/#local-development-with-secrets).
+   Do not use `wrangler secret put` for this local step.
+3. Apply migrations **locally**, then start the Worker:
+
+   ```sh
+   npm run migrate:local
+   npm run dev
    ```
 
-2. Set up Google OAuth credentials:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create OAuth 2.0 credentials (see [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed steps)
-   - Copy your Client ID and Client Secret
+4. Open `http://localhost:8787/` and choose **Continue with Google**. Keep the
+   browser host and port equal to `ISSUER_ORIGIN` in `wrangler.json`; localhost
+   and 127.0.0.1 are different origins.
 
-3. Create Cloudflare resources:
-   ```bash
-   # Create D1 database
-   npm run db:create openauth-template-auth-db
-   
-   # Create KV namespace
-   npm run kv:create AUTH_STORAGE
-   ```
+Google's `/google/callback` is distinct from the demo's internal `/callback`.
+The latter is registered inside this app for its single `openauth-demo` client;
+do not replace it with a frontend callback or exchange codes in browser code.
+These are setup instructions; successful real-provider verification is still pending.
 
-4. Set up secrets:
-   ```bash
-   npm run setup:secrets
-   # Enter your Google Client ID and Secret when prompted
-   ```
+## Deployment boundary
 
-5. Run database migrations:
-   ```bash
-   npm run migrate
-   ```
+**Do not deploy using the resource IDs currently committed in `wrangler.json`.**
+They are inherited bindings, not approved isolated demo resources.
 
-6. Deploy to Cloudflare:
-   ```bash
-   npm run deploy
-   ```
+Deployment requires an approved Cloudflare account, a dedicated Worker/D1/KV set,
+a canonical HTTPS issuer origin, matching Google redirect configuration and secrets.
+Remote migrations and deployment are separate explicit operations, never npm
+lifecycle hooks. Confirm isolation and the rollback/retention plan before either.
+No existing live database has been migrated as part of this work.
 
-### Enhanced Features
+Platform logs/traces are disabled to avoid recording OAuth callback URLs.
+Application failure logs contain only an event and generated request ID, not
+provider responses, names, email addresses or credentials. See the
+[logging decision](docs/decisions/002-authentication-logging.md).
 
-This template now includes:
+## Read the implementation
 
-- **Google OAuth Integration**: Login with Google alongside email/password
-- **Extended User Schema**: First name, last name, avatar, role, and addresses
-- **Client SDK**: Easy frontend integration with TypeScript support
-- **Authentication Middleware**: Route protection and role-based access control
-- **Ecommerce Ready**: Database schema optimized for ecommerce applications
+- [Browser interface](src/demo/): HTML/CSS and strictly checked JavaScript.
+- [Browser authentication](src/browser-auth.ts): login, callback, private API and logout.
+- [Identity mapping](src/identity.ts): verified provider data and D1 ownership.
+- [Bearer verification](src/token-verification.ts) and [profile route](src/bearer-profile.ts).
+- [Storage decisions](docs/decisions/004-issuer-key-storage.md) and
+  [OAuth expiry](docs/decisions/005-oauth-state-expiry.md).
+- [Specification](SPEC.md), [plan](tasks/plan.md) and [test evidence](docs/verification.md).
 
-### Documentation
-
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)**: Complete deployment guide with Google OAuth setup
-- **[ECOMMERCE_INTEGRATION.md](./ECOMMERCE_INTEGRATION.md)**: Integration guide for ecommerce applications
-- **[examples/](./examples/)**: Working examples for frontend and API integration
-
-### Monitoring
-
-Monitor your deployed worker:
-```bash
-npm run logs
-```
-
-### ARM Architecture Support
-
-**Important:** If you're on an ARM CPU (like Apple Silicon or Windows ARM), Wrangler's `workerd` package doesn't support ARM64 architecture. 
-
-**Recommended for ARM users:** Use the **Direct Deployment Workflow** - see [DIRECT_DEPLOYMENT_WORKFLOW.md](./DIRECT_DEPLOYMENT_WORKFLOW.md) for a streamlined approach that lets you:
-- Edit code locally on your ARM machine
-- Deploy directly to Cloudflare Workers
-- Test on live environment
-- Keep our conversation going! 💬
-
-Alternative approaches in [ARM_DEVELOPMENT_GUIDE.md](./ARM_DEVELOPMENT_GUIDE.md):
-- GitHub Codespaces
-- WSL2 on Windows  
-- Docker containers
+Based on [Cloudflare's OpenAuth template](https://github.com/cloudflare/templates/tree/main/openauth-template).
+This repository is an independent student project, not an official Cloudflare service.

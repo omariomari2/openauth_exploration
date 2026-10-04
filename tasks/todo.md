@@ -25,13 +25,19 @@
   Production HTTPS cookie enforcement is part of the live verification below.
 - [x] Demo screen: login, profile/API, logout and account-data deletion; no token
   localStorage. Verify account/session changes, drafts and uncertain writes.
-- [ ] Replace unsupported legacy SDK/example paths with a verified integration.
+- [x] Replace unsupported legacy SDK/example paths with the tested same-origin
+  implementation and migration guides; verify no retired exports remain.
 - [x] Local checkpoint: complete user flow with real workerd, D1 and KV; inspect
   browser console, cookie metadata, redirects, errors and responsive screenshots.
 - [ ] Verify hidden-tab visibility, BFCache restoration and delayed responses in
   a still-live document. Current trusted pagehide tests do not prove these cases.
-- [ ] CI/docs: frozen install and automated checks, reproducible setup, provider
-  configuration, security boundaries, retention/deletion and exact evidence.
+- [x] Prepare credential-free CI with locked install and automated checks; lint and
+  review its source. Document local setup, provider configuration, security and
+  retention boundaries, breaking integrations and exact verification evidence.
+- [ ] After explicit push approval, verify a GitHub-hosted CI run and configure
+  required checks with owner approval. No hosted green-run claim yet.
+- [ ] Add and verify scheduled cleanup of expired sessions/login transactions;
+  login-triggered cleanup alone does not bound idle database retention.
 - [ ] Fresh-context security/quality review; resolve findings and rerun affected tests.
 - [ ] Confirm Cloudflare account, isolated bindings and Google OAuth configuration.
 - [ ] Deploy isolated demo and verify real Google login for two separate accounts,

@@ -304,3 +304,41 @@ This is a test HTTP(S) boundary, not a general-purpose browser security sandbox.
   failed or skipped tests. Google remains a boundary fixture; production HTTPS,
   real Google accounts and isolated deployment remain unverified. CI and supported
   external integration examples are still pending. No push or live changes.
+
+## Legacy integration retirement
+
+- With owner approval, removed the obsolete SDK, unsigned-token helpers, middleware
+  and standalone HTML/React/API examples, including their entrypoint re-exports.
+  The replacement guides point to the existing tested same-origin implementation,
+  describe the breaking source imports and identify external copied consumers as
+  unknown. No database migration or dependency changed in this retirement.
+- A bundled-Worker export regression first reproduced the legacy exports, then
+  passed after removal. Existing ignored TypeScript outputs for the three retired
+  source modules were also removed; incremental builds do not remove stale files.
+  Git history preserves the source, but it is not a supported fallback.
+- Fresh-context review found an old tracked analysis guide that still appeared
+  current. It now carries a prominent historical/unsupported warning and links to
+  the supported guides. Follow-up review found no remaining retirement issue.
+- After a clean script-disabled install, build and bundling passed; 202 backend
+  tests and 20 Chromium tests passed with zero failures or skips. The dependency
+  audit reported zero known vulnerabilities. The Worker bundle is 347.07 KiB
+  (79.26 KiB gzip), down from 365.78 KiB (83.33 KiB gzip) before retirement.
+  Google remains a fixture in these tests; no push or live changes occurred.
+
+## Credential-free CI and local setup
+
+- The new Actions workflow passes actionlint 1.7.12 and fresh-context security
+  review. A separate source-level Linux portability review found no blocker;
+  this is not a Linux execution result. See the [CI decision](decisions/006-ci-checks.md)
+  for pinned tools, permissions and verification limits. No GitHub-hosted job has
+  run for this branch and no branch-protection settings have changed.
+- The rewritten README distinguishes local setup from unverified deployment and
+  documents the Google callback and ignored local secret file. The checked-in
+  `.dev.vars.example` contains placeholders only; `.dev.vars` remains ignored.
+- Actual Wrangler local migration applied all six migrations successfully into
+  the isolated `test-results/wrangler-setup-check` persistence directory. Local
+  dev, explicitly bound to 127.0.0.1 with remote bindings disabled, returned 200
+  for `/` and all three assets at the canonical localhost origin; `/api/profile`
+  returned 401 without credentials. All five responses used no-store. The owned
+  dev process was stopped afterward. This did not use real Google credentials or
+  any remote database, and does not verify a successful provider login.

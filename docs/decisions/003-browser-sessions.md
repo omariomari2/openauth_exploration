@@ -30,9 +30,13 @@ Responses use no-store and no-referrer, reject framing and MIME sniffing, and do
 not inherit wildcard CORS headers. Unexpected failures expose only a generic
 error and an application-generated request ID. No profile or credential is logged.
 Expired D1 transactions and sessions are cleaned on login; scheduled retention
-cleanup and the account-data deletion route are still planned.
+cleanup is still planned. The [account-data deletion route](../profile-api.md#account-deletion)
+is now implemented and tested locally.
 
-This is not yet a production or resume-readiness claim. In particular, the pinned
-issuer's concurrent first-key initialization needs a separate reliability fix.
+This is not yet a production or resume-readiness claim. The pinned issuer's
+concurrent first-key initialization was subsequently fixed with
+[immutable D1 issuer keys](004-issuer-key-storage.md). The local Chromium suite
+now checks cookie metadata and the full demo; real Google login and production
+HTTPS enforcement still require verification.
 No existing Cloudflare resource has been migrated or deployed, and no branch has
 been pushed.
