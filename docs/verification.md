@@ -136,3 +136,25 @@ Google login works. Those checks remain open in `tasks/todo.md`.
   write. A deterministic real-KV probe confirms that its floor calculation turns
   59,999 remaining milliseconds into an unsupported TTL of 59 seconds. That fix
   is a separate slice; a full-suite pass is still required afterward.
+
+## OAuth-state expiry
+
+- A deterministic issuer-storage regression first failed on real KV with
+  `Invalid expiration_ttl of 59`. It now passes through the expiry-aware adapter.
+  Twelve focused tests cover the exact deadline, longer/fractional lifetimes,
+  malformed envelopes, invalid dates, delayed reads, expired overwrites, scan
+  pagination and avoiding deletion of a newer concurrent value.
+- The bundled cold/warm tests start six browser-client flows together, then
+  complete their distinct Google fixtures sequentially and verify six isolated
+  private profiles. They are actual workerd/D1/KV tests, not real-browser tests.
+  Warm-up success is asserted explicitly. Deterministic key-race evidence remains
+  in the separate concurrent-generator tests rather than depending on timing here.
+  Five additional consecutive cold/warm runs passed (60 fixture-backed logins),
+  with the diagnostic command set to stop immediately on any failure.
+- Fresh-context adapter and integration reviews found no actionable defects.
+  `npm test`: 152 passed, zero failed/skipped; TypeScript build and full dependency
+  audit pass, with zero known advisories. No retries or skipped assertions were
+  added to production or to the test suite.
+- These fixes resolve the two locally identified reliability defects. The UI,
+  API mutations, CI and deployed two-account Google/browser verification remain
+  unfinished. The branch is local only; no push or deployment was performed.

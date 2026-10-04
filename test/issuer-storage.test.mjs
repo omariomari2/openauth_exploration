@@ -208,6 +208,13 @@ describe("issuer storage with real isolated D1 and KV", () => {
     } finally { await db.exec("DROP TRIGGER reject_issuer_key"); }
   });
 
+  test("OAuth code storage accepts a 60-second expiry after a millisecond has elapsed", async () => {
+    const key = ["oauth:code", "expiry-regression"];
+    const value = { subject: "test-user" };
+    await storage.set(key, value, new Date(Date.now() + 59_999));
+    assert.deepEqual(await createIssuerStorage(db, namespace).get(key), value);
+  });
+
   test("OAuth code and refresh values keep KV TTL, scan, overwrite, and removal semantics", async () => {
     const beforeSeconds = Math.floor(Date.now() / 1000);
     const expiry = new Date(Date.now() + 180_000);

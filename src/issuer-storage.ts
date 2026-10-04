@@ -1,4 +1,4 @@
-import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
+import { createExpiringKvStorage } from "./expiring-kv-storage.ts";
 import type { StorageAdapter } from "@openauthjs/openauth/storage/storage";
 import * as v from "valibot";
 
@@ -38,7 +38,7 @@ function parseKey(purpose: Purpose, id: string, value: unknown) {
 // This fresh, dedicated demo deliberately ignores legacy oauth:key KV entries.
 // Keys cannot expire, rotate, or be removed through this adapter; future formats fail closed.
 export function createIssuerStorage(db: D1Database, namespace: KVNamespace): StorageAdapter {
-  const kv = CloudflareStorage({ namespace });
+  const kv = createExpiringKvStorage(namespace);
   async function read(purpose: Purpose) {
     try {
       // Direct D1 calls use the primary; no Sessions API or cached reads.

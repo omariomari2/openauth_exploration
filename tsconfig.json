@@ -4,6 +4,7 @@
 		"lib": ["esnext"],
 		"module": "esnext",
 		"moduleResolution": "bundler",
+		"rewriteRelativeImportExtensions": true,
 		"types": ["./worker-configuration.d.ts"],
 		"noEmit": false,
 		"outDir": "./dist",

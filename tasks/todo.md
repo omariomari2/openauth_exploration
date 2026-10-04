@@ -12,7 +12,7 @@
   Verify malformed/unverified profiles, repeat/concurrent login and email conflict.
 - [x] Resolve cold-start issuer key initialization with one immutable D1 winner.
   Verify twelve concurrent creators and the actual bundled Worker key storage.
-- [ ] Fix the separate upstream KV expiry-rounding failure (59-second TTL from
+- [x] Fix the separate upstream KV expiry-rounding failure (59-second TTL from
   a 60-second authorization code). Preserve logical expiry; rerun full flows.
 - [ ] Profile API: verify signed subject/audience and load only the current user.
   Verify missing/forged/expired/wrong-issuer/wrong-audience/cross-user requests.
